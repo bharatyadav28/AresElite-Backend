@@ -1,0 +1,32 @@
+project-root
+|-- src
+|   |-- controllers
+|   |   |-- userController.js
+|   |   |-- otherController.js
+|
+|   |-- models
+|   |   |-- userModel.js
+|   |   |-- otherModel.js
+|
+|   |-- routes
+|   |   |-- userRoutes.js
+|   |   |-- otherRoutes.js
+|
+|   |-- middleware
+|   |   |-- authMiddleware.js
+|   |   |-- otherMiddleware.js
+|
+|   |-- services
+|   |   |-- userService.js
+|   |   |-- otherService.js
+|
+|   |-- utils
+|   |   |-- helperFunctions.js
+|   |   |-- otherUtils.js
+|
+|   |-- config
+|   |   |-- database.js
+|   |   |-- env.js
+|
+|-- index.js
+|-- package.json
