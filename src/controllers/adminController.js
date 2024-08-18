@@ -30,6 +30,10 @@ const ClinicStatusModel = require("../models/clinicStatusModel");
 const ShipmentModel = require("../models/shipment");
 const TermsAndConditionsModel = require("../models/termsAndConditions");
 const PrivacyPolicyModel = require("../models/privacyPolicy");
+const {
+  DynamicDrill,
+  DynamicDrillColumns,
+} = require("../models/DynamicDrillModel");
 
 const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 
@@ -1754,5 +1758,130 @@ exports.getPrivacyPolicy = catchAsyncError(async (req, res, next) => {
   return res.status(200).json({
     success: true,
     privacyPolicy,
+  });
+});
+
+// Dynamic Drills
+
+exports.getDynamicDrills = catchAsyncError(async (req, res, next) => {
+  let { page, filterName } = req.query;
+
+  const queryObject = {};
+  if (filterName) {
+    queryObject.drillName = { $regex: filterName, $options: "i" };
+  }
+
+  page = Number(page) || 1;
+  const limit = 10;
+  const skip = (page - 1) * limit;
+
+  const result = await DynamicDrill.find(queryObject);
+  const dynamicDrills = result.slice(skip, skip + limit);
+
+  return res.status(200).json({
+    success: true,
+    dynamicDrills,
+    count: dynamicDrills.length,
+  });
+});
+
+exports.createDrillName = catchAsyncError(async (req, res, next) => {
+  const { drillName } = req.body;
+  if (!drillName) {
+    return next(new ErrorHandler("Missing drill name", 400));
+  }
+  const newDrill = await DynamicDrill.create({ drillName });
+  if (!newDrill) {
+    return next(new ErrorHandler("Error in creating drill", 400));
+  }
+  return res.status(200).json({ success: true, newDrill });
+});
+
+exports.deleteDynamicDrill = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(new ErrorHandler("Missing drill id", 400));
+  }
+  const deletedDrill = await DynamicDrill.findByIdAndDelete(id);
+
+  if (!deletedDrill) {
+    return next(new ErrorHandler("Error in deleting drill", 400));
+  }
+  return res.status(200).json({ success: true });
+});
+
+exports.updateDynamicDrill = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const incomingData = req.body;
+
+  if (!incomingData) {
+    return next(new ErrorHandler("Missing inputs ", 400));
+  }
+
+  const updatedDrill = await DynamicDrill.findByIdAndUpdate(id, incomingData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (!updatedDrill) {
+    return next(new ErrorHandler("Error in updating drill"));
+  }
+  return res.status(200).json({ success: true, updatedDrill });
+});
+
+exports.createColumn = catchAsyncError(async (req, res, next) => {
+  const { columnName } = req.body;
+  if (!columnName) {
+    return next(new ErrorHandler("Missing column name", 400));
+  }
+  const newColumn = await DynamicDrillColumns.create({ columnName });
+  if (!newColumn) {
+    return next(new ErrorHandler("Error in creating column", 400));
+  }
+  return res.status(200).json({ success: true, newColumn });
+});
+
+exports.updateColumn = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const incomingData = req.body;
+
+  if (!incomingData) {
+    return next(new ErrorHandler("Missing inputs ", 400));
+  }
+
+  const updatedColumn = await DynamicDrillColumns.findByIdAndUpdate(
+    id,
+    incomingData,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  if (!updatedColumn) {
+    return next(new ErrorHandler("Error in updating Column"));
+  }
+  return res.status(200).json({ success: true, updatedColumn });
+});
+
+exports.deleteColumn = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(new ErrorHandler("Missing  id", 400));
+  }
+  const deletedColumn = await DynamicDrillColumns.findByIdAndDelete(id);
+
+  if (!deletedColumn) {
+    return next(new ErrorHandler("Error in column drill", 400));
+  }
+  return res.status(200).json({ success: true });
+});
+
+exports.getColumns = catchAsyncError(async (req, res, next) => {
+  const columns = await DynamicDrillColumns.find();
+  return res.status(200).json({
+    success: true,
+    columns,
+    count: columns.length,
   });
 });

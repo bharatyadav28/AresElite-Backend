@@ -57,6 +57,14 @@ const {
   DeletePrivacyPolicy,
   getPrivacyPolicy,
   dashboard,
+  createDrillName,
+  updateDynamicDrill,
+  deleteDynamicDrill,
+  getDynamicDrills,
+  createColumn,
+  updateColumn,
+  deleteColumn,
+  getColumns,
 } = require("../controllers/adminController");
 
 const {
@@ -158,5 +166,25 @@ router.delete("/delete_clinic", auth, isAdmin, delClinic);
 router.put("/edit_doc", auth, isAdmin, editDoc);
 router.put("/update_user", auth, isAdmin, updateUser);
 router.put("/update_clinic", auth, isAdmin, updateClinic);
+
+router
+  .route("/dynamic-drills")
+  .get(auth, isAdmin, getDynamicDrills)
+  .post(auth, isAdmin, createDrillName);
+
+router
+  .route("/dynamic-drills/:id")
+  .put(auth, isAdmin, updateDynamicDrill)
+  .delete(auth, isAdmin, deleteDynamicDrill);
+
+router
+  .route("/dynamic-drills/col")
+  .get(auth, isAdmin, getColumns)
+  .post(auth, isAdmin, createColumn);
+
+router
+  .route("/dynamic-drills/col/:id")
+  .put(auth, isAdmin, updateColumn)
+  .delete(auth, isAdmin, deleteColumn);
 
 module.exports = router;
