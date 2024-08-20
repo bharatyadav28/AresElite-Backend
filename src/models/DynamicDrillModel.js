@@ -6,7 +6,11 @@ const columnsSchema = new mongoose.Schema({
 });
 
 const inputSchema = new mongoose.Schema({
-  type: { type: String, required: true, enum: ["mcq", "text", "checkbox"] },
+  type: {
+    type: String,
+    required: true,
+    enum: ["multipleChoice", "text", "checkBox"],
+  },
   label: { type: String, required: true },
   options: [String],
 });
