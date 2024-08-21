@@ -34,6 +34,7 @@ const {
   DynamicDrill,
   DynamicDrillColumns,
 } = require("../models/DynamicDrillModel");
+const CamelcaseString = require("../utils/CamelcaseString");
 
 const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 
@@ -1821,7 +1822,8 @@ exports.updateDynamicDrill = catchAsyncError(async (req, res, next) => {
   if (incomingData.inputs) {
     incomingData.inputs.forEach((input) => {
       if (input.label) {
-        input.alias = input.label.replace(/\s/g, "");
+        // input.alias = input.label.replace(/\s/g, "");
+        input.alias = CamelcaseString(input.label);
       }
     });
   }
@@ -1855,6 +1857,10 @@ exports.updateColumn = catchAsyncError(async (req, res, next) => {
 
   if (!incomingData) {
     return next(new ErrorHandler("Missing inputs ", 400));
+  }
+
+  if (incomingData.columnName) {
+    incomingData.alias = CamelcaseString(incomingData.columnName);
   }
 
   const updatedColumn = await DynamicDrillColumns.findByIdAndUpdate(
