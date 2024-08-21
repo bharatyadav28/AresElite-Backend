@@ -14,11 +14,6 @@ const columnsSchema = new mongoose.Schema({
 });
 
 columnsSchema.pre("save", async function (next) {
-  // this.alias = this.columnName
-  //   .replace(/\s+/g, "") // Remove all spaces
-  //   .replace(/(^\w|[A-Z])/g, (match, index) =>
-  //     index === 0 ? match.toLowerCase() : match.toUpperCase()
-  //   );
   this.alias = CamelcaseString(this.columnName);
 
   next();

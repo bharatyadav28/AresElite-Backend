@@ -38,13 +38,15 @@ const {
   updateDrill,
   offlineDrillForm,
   getOfflineDrills,
-  submitOfflineDrills
+  submitOfflineDrills,
+  saveSessions,
+  getAllSessions,
+  getDrillsAllInputs,
 } = require("../controllers/userController");
 
 const router = express.Router();
 
-router.route('/training-session')
-  .get(auth, getTrainigSessionModel)
+router.route("/training-session").get(auth, getTrainigSessionModel);
 
 router.post("/login", login);
 router.post("/send-forgot-password-code", sendForgotPasswordCode);
@@ -55,7 +57,7 @@ router.post("/book-appointment/:id", bookAppointment); //authorization removed
 router.post("/submit-eval-form", auth, submitEvaluation);
 router.post("/submit-pres-form", auth, submitPrescription);
 router.post("/submit-diagnosis-form", auth, submitDiagnosis);
-router.post('/buy-training-session', auth, buyTrainingSession);
+router.post("/buy-training-session", auth, buyTrainingSession);
 
 router.get("/get-slots", auth, getSlots);
 router.get("/get-Drills", auth, getDrillDetails);
@@ -70,22 +72,25 @@ router.get("/in-queue-requests", auth, inQueueRequests);
 router.get("/in-queue-evaluations", auth, inQueueEvaluation);
 router.get("/get-form", auth, getForm);
 router.get("/appointments/:date", auth, getAppointment);
-router.get('/get-all-doctors', auth, getAllDoc);
-router.get('/getServiceTypes', auth, getServiceTypes);
-router.get('/get-all-appointments', auth, getAllAppointments);
-router.get('/get-offlineDrills', getOfflineDrills)
+router.get("/get-all-doctors", auth, getAllDoc);
+router.get("/getServiceTypes", auth, getServiceTypes);
+router.get("/get-all-appointments", auth, getAllAppointments);
+router.get("/get-offlineDrills", getOfflineDrills);
 
-router.put('/update-offline-drill', updateDrill);
+router.put("/update-offline-drill", updateDrill);
 router.put("/reset-password", resetPassword);
-router.put('/update-drill', auth, drillUpdate);
+router.put("/update-drill", auth, drillUpdate);
 router.put("/select-plan", auth, selectPlan);
 router.put("/update-profile-client", auth, editClientProfile);
 router.put("/update-profile-doctor", auth, editDoctorProfile);
 router.put("/update-password", auth, updatePassword);
-router.put('/update-status-appointment', auth, appointmentStatus);
+router.put("/update-status-appointment", auth, appointmentStatus);
 
-router.post('/offlineDrillForm', offlineDrillForm)
-router.post('/submitOfflineDrill', submitOfflineDrills)
+router.post("/offlineDrillForm", offlineDrillForm);
+router.post("/submitOfflineDrill", submitOfflineDrills);
 
+router.post("/offline-drill", saveSessions);
+router.get("/offline-drill/:cid/:aid", getAllSessions);
+router.get("/drill_inputs/", getDrillsAllInputs);
 
 module.exports = router;
