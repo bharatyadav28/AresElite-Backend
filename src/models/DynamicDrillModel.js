@@ -1,9 +1,23 @@
 const mongoose = require("mongoose");
 
+// schema 1
+
+const valuesSchema = new mongoose.Schema({
+  value: String,
+});
+
 const columnsSchema = new mongoose.Schema({
   columnName: String,
-  values: Array,
+  values: [valuesSchema],
+  alias: { type: String },
 });
+
+columnsSchema.pre("save", async function (next) {
+  this.alias = this.columnName.replace(/\s/g, "");
+  next();
+});
+
+// schema 2
 
 const inputSchema = new mongoose.Schema({
   type: {
@@ -13,6 +27,7 @@ const inputSchema = new mongoose.Schema({
   },
   label: { type: String, required: true },
   options: [String],
+  alias: { type: String },
 });
 
 const dynamicDrillSchema = new mongoose.Schema({
@@ -24,6 +39,7 @@ const dynamicDrillSchema = new mongoose.Schema({
   inputs: [inputSchema],
 });
 
+// modals
 const DynamicDrillColumns = mongoose.model(
   "DynamicDrillColumns",
   columnsSchema

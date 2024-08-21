@@ -1818,6 +1818,14 @@ exports.updateDynamicDrill = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Missing inputs ", 400));
   }
 
+  if (incomingData.inputs) {
+    incomingData.inputs.forEach((input) => {
+      if (input.label) {
+        input.alias = input.label.replace(/\s/g, "");
+      }
+    });
+  }
+
   const updatedDrill = await DynamicDrill.findByIdAndUpdate(id, incomingData, {
     new: true,
     runValidators: true,
