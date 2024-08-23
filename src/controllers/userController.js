@@ -1875,15 +1875,35 @@ exports.getDrillsAllInputs = catchAsyncError(async (req, res, next) => {
 });
 
 exports.saveSessions = catchAsyncError(async (req, res, next) => {
+  const { cid, aid } = req.params;
   const sessionData = req.body;
-  const result = await OfflineAtheleteDrillsModel.create(sessionData);
+
+  let result = await OfflineAtheleteDrillsModel.findOne({
+    client: new mongoose.Types.ObjectId(cid),
+    appointment: new mongoose.Types.ObjectId(aid),
+  });
+
+  const updatedDrills = sessionData.sessions[0].drills?.map((item) => {
+    return { ...item, drill: new mongoose.Types.ObjectId(item.drill) };
+  });
+  const newSession = { ...sessionData.sessions[0], drills: updatedDrills };
+
+  if (result) {
+    result?.sessions?.push(newSession);
+
+    await result.save();
+  } else {
+    const updatedData = { ...sessionData, sessions: [newSession] };
+    result = await OfflineAtheleteDrillsModel.create(updatedData);
+  }
+
   res.status(200).json({ success: true, result });
 });
 
 exports.getAllSessions = catchAsyncError(async (req, res, next) => {
   const { cid, aid } = req.params;
 
-  const result = await OfflineAtheleteDrillsModel.find({
+  const result = await OfflineAtheleteDrillsModel.findOne({
     client: new mongoose.Types.ObjectId(cid),
     appointment: new mongoose.Types.ObjectId(aid),
   });

@@ -6,9 +6,13 @@ const SessionDataSchema = new mongoose.Schema({
     required: [true, "Please provide dynamic drill id"],
     ref: "DynamicDrill",
   },
+  drillName: {
+    type: String,
+    required: [true, "Please provide drill name"],
+  },
 
-  inputValues: [Object],
-  columnValues: [Object],
+  inputValues: Object,
+  columnValues: Object,
   isComplete: {
     type: Boolean,
     default: false,
@@ -16,11 +20,11 @@ const SessionDataSchema = new mongoose.Schema({
 });
 
 const SessionsSchema = new mongoose.Schema({
-  sessionNumber: {
-    type: Number,
+  session: {
+    type: String,
     default: 1,
   },
-  data: [SessionDataSchema],
+  drills: [SessionDataSchema],
   isBooked: {
     type: Boolean,
     default: false,

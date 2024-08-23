@@ -89,8 +89,8 @@ router.put("/update-status-appointment", auth, appointmentStatus);
 router.post("/offlineDrillForm", offlineDrillForm);
 router.post("/submitOfflineDrill", submitOfflineDrills);
 
-router.post("/offline-drill", saveSessions);
-router.get("/offline-drill/:cid/:aid", getAllSessions);
-router.get("/drill_inputs/", getDrillsAllInputs);
+router.get("/offline-drill/:cid/:aid", auth, getAllSessions);
+router.post("/offline-drill/:cid/:aid", auth, saveSessions);
+router.get("/drill_inputs/", auth, getDrillsAllInputs);
 
 module.exports = router;
