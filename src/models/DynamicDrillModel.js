@@ -28,6 +28,10 @@ const inputSchema = new mongoose.Schema({
     enum: ["multipleChoice", "text", "checkBox"],
   },
   label: { type: String, required: true },
+  unit: {
+    type: String,
+    default: "",
+  },
   options: [String],
   alias: { type: String },
 });
