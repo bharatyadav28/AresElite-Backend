@@ -42,7 +42,9 @@ const {
   saveSessions,
   getAllSessions,
   getDrillsAllInputs,
+  updateProfilePic,
 } = require("../controllers/userController");
+const { upload } = require("../utils/aws");
 
 const router = express.Router();
 
@@ -83,6 +85,7 @@ router.put("/update-drill", auth, drillUpdate);
 router.put("/select-plan", auth, selectPlan);
 router.put("/update-profile-client", auth, editClientProfile);
 router.put("/update-profile-doctor", auth, editDoctorProfile);
+router.put("/update-profile-pic", upload.any(), auth, updateProfilePic);
 router.put("/update-password", auth, updatePassword);
 router.put("/update-status-appointment", auth, appointmentStatus);
 
