@@ -1967,8 +1967,17 @@ exports.getAllSessions = catchAsyncError(async (req, res, next) => {
     appointment: new mongoose.Types.ObjectId(aid),
   });
 
+  const dynamicDrills = await DynamicDrill.find();
+
+  let drillInputTypes = {};
+  dynamicDrills?.forEach((drill) => {
+    drillInputTypes[drill._id] = drill.inputs;
+  });
+
   const sessionNames =
     result?.sessions?.reduce((acc, curr) => [...acc, curr.session], []) || [];
 
-  res.status(200).json({ success: true, result, sessionNames });
+  res
+    .status(200)
+    .json({ success: true, result, sessionNames, drillInputTypes });
 });
