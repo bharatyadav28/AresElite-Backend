@@ -1868,9 +1868,29 @@ exports.submitOfflineDrills = catchAsyncError(async (req, res, next) => {
 exports.getDrillsAllInputs = catchAsyncError(async (req, res, next) => {
   const columns = await DynamicDrillColumns.find();
   const drills = await DynamicDrill.find();
+
+  const sessionNamesArr = await OfflineAtheleteDrillsModel.aggregate([
+    {
+      $match: {
+        client: new mongoose.Types.ObjectId("66a0e9a39c738fd70f5c4f0c"),
+        appointment: new mongoose.Types.ObjectId("66a0eb96c5f474a201c2e8e1"),
+      },
+    },
+
+    {
+      $project: {
+        _id: 0,
+        sessionNames: "$sessions.session",
+      },
+    },
+  ]);
+
+  const sessionNames = sessionNamesArr[0].sessionNames;
+
   return res.status(200).json({
     success: true,
     data: { columns, drills },
+    sessionNames,
   });
 });
 
@@ -1907,5 +1927,11 @@ exports.getAllSessions = catchAsyncError(async (req, res, next) => {
     client: new mongoose.Types.ObjectId(cid),
     appointment: new mongoose.Types.ObjectId(aid),
   });
-  res.status(200).json({ success: true, result });
+
+  const sessionNames = result.sessions.reduce(
+    (acc, curr) => [...acc, curr.session],
+    []
+  );
+
+  res.status(200).json({ success: true, result, sessionNames });
 });

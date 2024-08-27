@@ -91,6 +91,6 @@ router.post("/submitOfflineDrill", submitOfflineDrills);
 
 router.get("/offline-drill/:cid/:aid", auth, getAllSessions);
 router.post("/offline-drill/:cid/:aid", auth, saveSessions);
-router.get("/drill_inputs/", auth, getDrillsAllInputs);
+router.get("/drill_inputs/:cid/:aid", auth, getDrillsAllInputs);
 
 module.exports = router;

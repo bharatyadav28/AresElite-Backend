@@ -22,7 +22,7 @@ const SessionDataSchema = new mongoose.Schema({
 const SessionsSchema = new mongoose.Schema({
   session: {
     type: String,
-    default: 1,
+    required: ["true", "Session number cannot be empty"],
   },
   drills: [SessionDataSchema],
   isBooked: {
