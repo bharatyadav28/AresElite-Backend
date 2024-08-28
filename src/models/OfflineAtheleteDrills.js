@@ -40,7 +40,7 @@ const OfflineAtheleteDrillsSchema = new mongoose.Schema(
     },
     appointment: {
       type: mongoose.Schema.Types.ObjectId,
-      required: [true, "Please provide appointment id"],
+      // required: [true, "Please provide appointment id"],
       ref: "appointment",
     },
 
@@ -48,6 +48,10 @@ const OfflineAtheleteDrillsSchema = new mongoose.Schema(
       type: String,
     },
     sessions: [SessionsSchema],
+    numOfSessions: {
+      type: Number,
+      default: 1,
+    },
   },
   { timestamps: true }
 );

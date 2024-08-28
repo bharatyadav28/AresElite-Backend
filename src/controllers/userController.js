@@ -1729,7 +1729,7 @@ exports.deleteTrainingSessionModel = catchAsyncError(async (req, res, next) => {
 });
 
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
-  const { clientId, sessionId, mode } = req.query;
+  const { clientId, sessionId, mode, appointmentId } = req.query;
 
   if (!clientId || !sessionId) {
     return res.status(400).json({
@@ -1758,6 +1758,15 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
     sessions,
   });
   SessionForUser.save();
+
+  const rmyes = await OfflineAtheleteDrillsModel.create({
+    client: new mongoose.Types.ObjectId(clientId),
+    appointment: new mongoose.Types.ObjectId(appointmentId),
+    numOfSessions: TrainingSession.sessions,
+  });
+
+  console.log("res", rmyes);
+
   const dater = new Date();
   const fdate = dater.setUTCHours(0, 0, 0, 0);
   const transaction = await transactionModel.create({
@@ -1912,19 +1921,29 @@ exports.getDrillsAllInputs = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         client: new mongoose.Types.ObjectId(cid),
-        appointment: new mongoose.Types.ObjectId(aid),
+        // appointment: new mongoose.Types.ObjectId(aid),
       },
     },
 
     {
       $project: {
         _id: 0,
+
         sessionNames: "$sessions.session",
+        numOfSessions: "$numOfSessions",
       },
     },
   ]);
 
-  const sessionNames = sessionNamesArr[0]?.sessionNames || [];
+  const savedSessions = sessionNamesArr[0]?.sessionNames || [];
+  let sessionNames = [];
+  for (
+    let i = savedSessions.length + 1;
+    i <= sessionNamesArr[0]?.numOfSessions;
+    i++
+  ) {
+    sessionNames.push(`Session ${i}`);
+  }
 
   return res.status(200).json({
     success: true,
