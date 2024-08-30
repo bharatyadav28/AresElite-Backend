@@ -1773,7 +1773,7 @@ exports.getDynamicDrills = catchAsyncError(async (req, res, next) => {
   }
 
   page = Number(page) || 1;
-  const limit = 10;
+  const limit = 1000;
   const skip = (page - 1) * limit;
 
   const result = await DynamicDrill.find(queryObject);
