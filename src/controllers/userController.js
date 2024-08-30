@@ -1914,8 +1914,33 @@ exports.submitOfflineDrills = catchAsyncError(async (req, res, next) => {
 
 exports.getDrillsAllInputs = catchAsyncError(async (req, res, next) => {
   const { cid, aid } = req.params;
-  const columns = await DynamicDrillColumns.find();
+  const unsortedColumns = await DynamicDrillColumns.find();
   const drills = await DynamicDrill.find();
+
+  const desiredOrder = [
+    "66c5823f1c2a865bf90c6c45", // Difficulty
+    "66c5dd65d5d49f517f72950a", // Drill level
+    "66c5825b1c2a865bf90c6c5b", // Color
+  ];
+
+  const columns = unsortedColumns.sort((a, b) => {
+    const indexA = desiredOrder.indexOf(a._id.toString());
+    const indexB = desiredOrder.indexOf(b._id.toString());
+
+    if (indexA === -1 && indexB === -1) {
+      // If both columns are not in the desired order, retain their original order
+      return 0;
+    } else if (indexA === -1) {
+      // If column `a` is not in the desired order, but column `b` is, `b` comes first
+      return 1;
+    } else if (indexB === -1) {
+      // If column `b` is not in the desired order, but column `a` is, `a` comes first
+      return -1;
+    } else {
+      // If both columns are in the desired order, sort them according to their order in `desiredOrder`
+      return indexA - indexB;
+    }
+  });
 
   const sessionNamesArr = await OfflineAtheleteDrillsModel.aggregate([
     {
