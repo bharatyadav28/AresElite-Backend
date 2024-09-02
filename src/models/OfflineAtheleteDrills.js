@@ -17,6 +17,9 @@ const SessionDataSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  createdAt: {
+    type: String,
+  },
 });
 
 const SessionsSchema = new mongoose.Schema({

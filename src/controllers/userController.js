@@ -1987,6 +1987,11 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
   });
 
   const updatedDrills = sessionData.sessions[0].drills?.map((item) => {
+    if (!item.createdAt) {
+      const date = new Date().toISOString();
+      const formattedDate = date.replace("Z", "+00:00");
+      item.createdAt = formattedDate;
+    }
     return { ...item, drill: new mongoose.Types.ObjectId(item.drill) };
   });
   const newSession = { ...sessionData.sessions[0], drills: updatedDrills };
@@ -1997,6 +2002,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
     await result.save();
   } else {
     const updatedData = { ...sessionData, sessions: [newSession] };
+
     result = await OfflineAtheleteDrillsModel.create(updatedData);
   }
 
