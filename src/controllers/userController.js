@@ -413,8 +413,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service.cost,
       status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions"
+          service_type === "ConsultationCall" ||
+          service_type === "TrainingSessions"
           ? "paid"
           : "pending",
     });
@@ -435,8 +435,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions"
+          service_type === "ConsultationCall" ||
+          service_type === "TrainingSessions"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -492,8 +492,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-      service_type === "ConsultationCall" ||
-      service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -871,7 +871,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       user,
       appointment,
     });
-  } catch (e) {}
+  } catch (e) { }
 });
 
 exports.getForm = catchAsyncError(async (req, res) => {
@@ -931,7 +931,8 @@ exports.getSlots = catchAsyncError(async (req, res) => {
   let slots = [];
   const query = {};
   if (date) {
-    query.date = date + "+00:00";
+    query.date = date + "T00:00:00.000+00:00";
+    console.log(query.date)
   }
   if (doctor) {
     query.doctor = doctor;
