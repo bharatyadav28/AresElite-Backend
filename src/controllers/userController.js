@@ -27,6 +27,8 @@ const {
   DynamicDrillColumns,
   DynamicDrill,
 } = require("../models/DynamicDrillModel.js");
+
+const BookingServiceModel = require("../models/BookingService.js");
 const { s3Uploadv2 } = require("../utils/aws.js");
 
 exports.getProfile = catchAsyncError(async (req, res, next) => {
@@ -348,6 +350,7 @@ exports.checkClient = catchAsyncError(async (req, res, next) => {
 
 exports.bookAppointment = catchAsyncError(async (req, res, next) => {
   const client_id = req.params.id;
+
   let appointmentOnDate = 0;
   const {
     service_type,
@@ -357,12 +360,26 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     doctor_trainer,
     location,
   } = req.body;
-  if (service_type === "TrainingSessions") {
+
+  console.log(
+    service_type,
+    app_date,
+    app_time,
+    end_time,
+    doctor_trainer,
+    location
+  );
+  // if (service_type === "TrainingSessions") {
+  if (
+    service_type === "AddTrainingSessions" ||
+    service_type === "OfflineVisit" ||
+    service_type === "TeleSession"
+  ) {
     // For managing TrainingSessions
 
     let query = {
       service_type,
-      app_date: `${app_date.split("T")[0]}T00:00:00.000`,
+      app_date: `${app_date?.split("T")[0]}T00:00:00.000`,
       app_time,
       end_time,
       doctor_trainer,
@@ -379,19 +396,45 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     if (client.role !== "athlete") {
       return next(new ErrorHandler("Unauthorized! Access denied", 400));
     }
-    const result = await OfflineDrill.aggregate([
-      { $match: { clientId: new mongoose.Types.ObjectId(client_id) } },
-      { $unwind: "$sessions" },
-      { $match: { "sessions.isBooked": false } },
-      { $count: "nonBookedCount" },
-    ]);
-    const nonBookedCount = result.length > 0 ? result[0].nonBookedCount : 0;
-    if (!nonBookedCount) {
+    // const result = await OfflineDrill.aggregate([
+    //   { $match: { clientId: new mongoose.Types.ObjectId(client_id) } },
+    //   { $unwind: "$sessions" },
+    //   { $match: { "sessions.isBooked": false } },
+    //   { $count: "nonBookedCount" },
+    // ]);
+    // const nonBookedCount = result.length > 0 ? result[0].nonBookedCount : 0;
+    // if (!nonBookedCount) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Cannot find non-booked session",
+    //   });
+    // }
+
+    const result = await OfflineAtheleteDrillsModel.findOne({
+      client: new mongoose.Types.ObjectId(client_id),
+    });
+    const unBookedSessions = result.numOfSessions - result.sessions.length;
+
+    if (unBookedSessions < 1 && service_type === "OfflineVisit") {
       return res.status(400).json({
         success: false,
         message: "Cannot find non-booked session",
       });
     }
+
+    const TeleSession = await appointmentModel.countDocuments({
+      client: new mongoose.Types.ObjectId(client_id),
+      service_type: "TeleSession",
+    });
+
+    console.log("teleSessions", TeleSession);
+    if (TeleSession > 2 && service_type === "TeleSession") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot find non-booked session",
+      });
+    }
+
     const dayAppointments = await appointmentModel
       .find(query)
       .sort({ createdAt: "desc" });
@@ -401,6 +444,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       );
     }
     const service = await ServiceTypeModel.findOne({ alias: service_type });
+    const bservice = await BookingServiceModel.findOne({ alias: service_type });
+
     const appointment = await appointmentModel.create({
       appointment_id: app_id,
       client: client_id,
@@ -410,46 +455,53 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       end_time,
       doctor_trainer,
       location,
-      amount: service.cost,
+      amount: service?.cost || bservice?.cost,
       status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "AddTrainingSessions" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
     const date = new Date(app_date);
     date.setUTCHours(0, 0, 0, 0);
     await appointment.save();
-    const offlineDrillupdate = await OfflineDrill.findOneAndUpdate(
-      {
-        clientId: new mongoose.Types.ObjectId(client_id),
-        "sessions.isBooked": false,
-      },
-      { $set: { "sessions.$.isBooked": true } },
-      { new: true }
-    );
+    // const offlineDrillupdate = await OfflineDrill.findOneAndUpdate(
+    //   {
+    //     clientId: new mongoose.Types.ObjectId(client_id),
+    //     "sessions.isBooked": false,
+    //   },
+    //   { $set: { "sessions.$.isBooked": true } },
+    //   { new: true }
+    // );
+
+    console.log(service_type, appointment);
+
     const transaction = await transactionModel.create({
       doctor: doctor_trainer,
       service_type,
       date,
       payment_status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
       clientId: client_id,
-      amount: service.cost,
+      amount: service?.cost || 0,
     });
     await transaction.save();
-    await offlineDrillupdate.save();
+    // await offlineDrillupdate.save();
     return res.status(200).json({
       success: true,
       message: `Appointment booked. Your Appointment ID: ${app_id}.`,
       appointment: appointment,
     });
+
     // यह ख़त्म है ट्रेनिंग सेशन
   }
   let query = {
@@ -492,8 +544,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions"
+      service_type === "ConsultationCall" ||
+      service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -871,7 +923,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       user,
       appointment,
     });
-  } catch (e) { }
+  } catch (e) {}
 });
 
 exports.getForm = catchAsyncError(async (req, res) => {
@@ -932,7 +984,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
   const query = {};
   if (date) {
     query.date = date + "T00:00:00.000+00:00";
-    console.log(query.date)
+    // query.date = date + "+00:00";
   }
   if (doctor) {
     query.doctor = doctor;
@@ -2015,7 +2067,7 @@ exports.getAllSessions = catchAsyncError(async (req, res, next) => {
 
   const result = await OfflineAtheleteDrillsModel.findOne({
     client: new mongoose.Types.ObjectId(cid),
-    appointment: new mongoose.Types.ObjectId(aid),
+    // appointment: new mongoose.Types.ObjectId(aid),
   });
 
   const dynamicDrills = await DynamicDrill.find();
@@ -2031,4 +2083,10 @@ exports.getAllSessions = catchAsyncError(async (req, res, next) => {
   res
     .status(200)
     .json({ success: true, result, sessionNames, drillInputTypes });
+});
+
+exports.createBookingService = catchAsyncError(async (req, res, next) => {
+  await BookingServiceModal.create(req.body);
+
+  res.status(201).json({ success: true });
 });

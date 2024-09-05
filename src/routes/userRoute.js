@@ -43,6 +43,7 @@ const {
   getAllSessions,
   getDrillsAllInputs,
   updateProfilePic,
+  createBookingService,
 } = require("../controllers/userController");
 const { upload } = require("../utils/aws");
 
@@ -95,5 +96,7 @@ router.post("/submitOfflineDrill", submitOfflineDrills);
 router.get("/offline-drill/:cid/:aid", auth, getAllSessions);
 router.post("/offline-drill/:cid/:aid", auth, saveSessions);
 router.get("/drill_inputs/:cid/:aid", auth, getDrillsAllInputs);
+
+router.post("/booking-service", createBookingService);
 
 module.exports = router;
