@@ -75,7 +75,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
     is_online,
     password,
     role: "athlete",
-    mode:"N.A."
+    mode: "N.A."
   });
   newAccount(email, `${firstName}${lastName}`, password);
   await user.save();
@@ -450,16 +450,20 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
         }
       }
     ];
+    const testClient = await OfflineDrill.findOne({ clientId: new mongoose.Types.ObjectId('66d9e4cb904ec8d3a774c729') });
+    console.log(testClient);
+    // console.log(lineForTotalIsBooked)
     const sessionResult = await OfflineDrill.aggregate(lineForTotalIsBooked);
+    // console.log(sessionResult)
     const shipment = await ShipmentModel.find({ ClientId: new mongoose.Types.ObjectId(userId) }).select("-shippingAddress -productDescription -productImages -ClientId -plan -phase");
     return res.status(200).json({
       success: true,
       userDetails,
-      sessionDetails: {
-        totalSessions: sessionResult[0].totalSessions,
-        completedSessions: sessionResult[0].bookedSessions,
-        sessionProgress: (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) * 100
-      },
+      // sessionDetails: {
+      //   totalSessions: sessionResult[0].totalSessions,
+      //   completedSessions: sessionResult[0].bookedSessions,
+      //   sessionProgress: (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) * 100
+      // },
       shipment,
       isShipment: Boolean(shipment)
     });

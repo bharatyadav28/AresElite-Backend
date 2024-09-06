@@ -8,7 +8,7 @@ const { resetPasswordCode, newAccount } = require("../utils/mails");
 const generateCode = require("../utils/generateCode");
 const jwt = require("jsonwebtoken");
 const { generateAppointmentId } = require("../utils/generateId");
-const { calculateTimeDifference, sendData } = require("../utils/functions");
+const { calculateTimeDifference, sendData, filterBookedSlots } = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
 const moment = require("moment");
@@ -793,7 +793,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   const plan = req.query.plan;
   const planPhase = req.query.planPhase;
   const mode = req.query.mode;
-
+  const userID = req.userId //id from token
   if (!userId || !plan || !planPhase) {
     return next(new ErrorHandler("Please provide a user id", 400));
   }
@@ -858,10 +858,15 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   user.mode = mode;
   user.plan_payment = "pending";
   await user.save();
+  let title;
+  let message;
   try {
+    const checkUser = await userModel.findById(userID)
+    title = checkUser.role == 'athlete' ? 'Plan selected successfully!' : 'Doctor has selected your plan'
+    message = checkUser.role == 'athlete' ? `You have selected ${plan} and phase ${planPhase}` : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`
     const isSend = await createNotification(
-      "Doctor has selected your plan ",
-      `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`,
+      title,
+      message,
       user
     );
     if (isSend);
@@ -927,148 +932,85 @@ exports.getAppointment = catchAsyncError(async (req, res) => {
 });
 
 exports.getSlots = catchAsyncError(async (req, res) => {
-  const { doctor, date, service_type, location } = req.query;
+  const { doctor, date, service_type, location, user_id } = req.query; // Add user_id to query
   let slots = [];
   const query = {};
+
   if (date) {
     query.date = date + "T00:00:00.000+00:00";
-    console.log(query.date)
+    console.log(query.date);
   }
   if (doctor) {
     query.doctor = doctor;
   }
+
   if (date && doctor && service_type) {
-    let fdate = `${date.split("T")[0]}T00:00:00.000Z`;
+    let fdate = date + "T00:00:00.000";
+
+    // Find all appointments by this user for the given doctor and date
+    const userAppointments = await appointmentModel.find({
+      doctor_trainer: doctor,
+      app_date: fdate,
+      user: user_id, // Assuming user_id is the field for the user who booked the appointment
+    }).select('app_time service_type');
+
     const dayAppointments = await appointmentModel.find({
       doctor_trainer: doctor,
       app_date: fdate,
     });
+
     const doc = await slotModel.find(query);
     let Calcslots = [];
-    if (dayAppointments.length > 2) {
-      const promises = dayAppointments.map((app, index) => {
-        if (index === 0) {
-          calculateTimeDifference(
-            doc[0].startTime,
-            null,
-            app.app_time,
-            app.service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-          });
-        } else if (index + 1 === dayAppointments.length) {
-          calculateTimeDifference(
-            app.app_time,
-            app.service_type,
-            doc[0].startTime,
-            service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-            Calcslots = Calcslots.filter((slot) => slot !== undefined);
-            slots = Calcslots.map((slot, index) => [
-              slot,
-              Calcslots[index + 1] == null
-                ? doc[0].endTime
-                : Calcslots[index + 1],
-            ]);
-            return res.status(200).json({ slots: slots });
-          });
-        } else {
-          calculateTimeDifference(
-            app.app_time,
-            app.service_type,
-            dayAppointments[index + 1].app_time,
-            service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-          });
-        }
-      });
-      Calcslots = await Promise.all(promises);
-    }
-    if (dayAppointments.length === 2) {
-      const promises = dayAppointments.map((app, index) => {
-        if (index === 0) {
-          calculateTimeDifference(
-            doc[0].startTime,
-            null,
-            app.app_time,
-            app.service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-          });
-        } else if (index + 1 === dayAppointments.length) {
-          calculateTimeDifference(
-            dayAppointments[index - 1].end_time,
-            null,
-            app.app_time,
-            service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-          });
 
-          calculateTimeDifference(
-            app.end_time,
-            null,
-            doc[0].endTime,
-            service_type
-          ).then((data) => {
-            if (data.length > 0) {
-              data.map((slot) => Calcslots.push(slot));
-            }
-            Calcslots = Calcslots.filter((slot) => slot !== undefined);
-            slots = Calcslots.map((slot, index) => [
-              slot,
-              Calcslots[index + 1] == null
-                ? doc[0].endTime
-                : Calcslots[index + 1],
-            ]);
-            return res.status(200).json({ slots: slots });
-          });
-        }
-      });
-      Calcslots = await Promise.all(promises);
-    }
-    if (dayAppointments.length === 1) {
-      const promises = dayAppointments.map((app, index) => {
-        calculateTimeDifference(
+    const promises = dayAppointments.map(async (app, index) => {
+      if (index === 0) {
+        await calculateTimeDifference(
           doc[0].startTime,
           null,
           app.app_time,
           app.service_type
         ).then((data) => {
-          data.map((slot) => Calcslots.push(slot));
+          if (data.length > 0) {
+            data.map((slot) => Calcslots.push(slot));
+          }
         });
-        calculateTimeDifference(
+      } else if (index + 1 === dayAppointments.length) {
+        await calculateTimeDifference(
           app.app_time,
           app.service_type,
-          doc[0].endTime,
+          doc[0].startTime,
           service_type
         ).then((data) => {
-          data.map((slot) => Calcslots.push(slot));
+          if (data.length > 0) {
+            data.map((slot) => Calcslots.push(slot));
+          }
+          Calcslots = Calcslots.filter((slot) => slot !== undefined);
           slots = Calcslots.map((slot, index) => [
             slot,
             Calcslots[index + 1] == null
               ? doc[0].endTime
               : Calcslots[index + 1],
           ]);
-          return res.status(200).json({ slots: slots });
+          return res.status(200).json({ slots: filterBookedSlots(slots, userAppointments) });
         });
-      });
-      await Promise.all(promises);
-    }
+      } else {
+        await calculateTimeDifference(
+          app.app_time,
+          app.service_type,
+          dayAppointments[index + 1].app_time,
+          service_type
+        ).then((data) => {
+          if (data.length > 0) {
+            data.map((slot) => Calcslots.push(slot));
+          }
+        });
+      }
+    });
+
+    await Promise.all(promises);
+
     if (dayAppointments.length === 0) {
-      calculateTimeDifference(
+      await calculateTimeDifference(
         doc[0].startTime,
         null,
         doc[0].endTime,
@@ -1079,11 +1021,13 @@ exports.getSlots = catchAsyncError(async (req, res) => {
           slot,
           Calcslots[index + 1] == null ? doc[0].endTime : Calcslots[index + 1],
         ]);
-        return res.status(200).json({ slots: slots });
+        return res.status(200).json({ slots: filterBookedSlots(slots, userAppointments) });
       });
     }
+
     return;
   }
+
   if (!doctor && !date) {
     slots = await slotModel.find().select("date address");
     return res.status(200).json({ dates: slots });

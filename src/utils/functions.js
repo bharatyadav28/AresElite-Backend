@@ -101,6 +101,19 @@ const addDuration = (startTime, durationMinutes) => {
     return formattedEndTime;
 };
 
+const filterBookedSlots = (slots, userAppointments) => {
+    console.log(slots)
+    console.log("User Appoint", userAppointments)
+    // Assuming slots are structured as [[startTime, endTime], [startTime, endTime], ...]
+    return slots.filter((slot) => {
+        const [slotStart, slotEnd] = slot;
+        return !userAppointments.some((app) => {
+            const appTime = app.app_time; // Assuming this is the appointment time
+            return appTime >= slotStart && appTime < slotEnd; // If appointment falls in this slot, exclude it
+        });
+    });
+}
+
 const createArrayOfPairs = (arr) => {
     const pairsArray = [];
 
@@ -124,4 +137,4 @@ const createNotification = catchAsyncError(async (title, text, user) => {
     }
 });
 
-module.exports = { addDuration, timeForService, createArrayOfPairs, calculateTimeDifference, sendData, timeValidate, createNotification }
+module.exports = { addDuration, timeForService, createArrayOfPairs, calculateTimeDifference, sendData, timeValidate, createNotification, filterBookedSlots }
