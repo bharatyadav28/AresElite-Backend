@@ -8,7 +8,11 @@ const { resetPasswordCode, newAccount } = require("../utils/mails");
 const generateCode = require("../utils/generateCode");
 const jwt = require("jsonwebtoken");
 const { generateAppointmentId } = require("../utils/generateId");
-const { calculateTimeDifference, sendData, filterBookedSlots } = require("../utils/functions");
+const {
+  calculateTimeDifference,
+  sendData,
+  filterBookedSlots,
+} = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
 const moment = require("moment");
@@ -851,7 +855,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   const plan = req.query.plan;
   const planPhase = req.query.planPhase;
   const mode = req.query.mode;
-  const userID = req.userId //id from token
+  const userID = req.userId; //id from token
   if (!userId || !plan || !planPhase) {
     return next(new ErrorHandler("Please provide a user id", 400));
   }
@@ -919,14 +923,16 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   let title;
   let message;
   try {
-    const checkUser = await userModel.findById(userID)
-    title = checkUser.role == 'athlete' ? 'Plan selected successfully!' : 'Doctor has selected your plan'
-    message = checkUser.role == 'athlete' ? `You have selected ${plan} and phase ${planPhase}` : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`
-    const isSend = await createNotification(
-      title,
-      message,
-      user
-    );
+    const checkUser = await userModel.findById(userID);
+    title =
+      checkUser.role == "athlete"
+        ? "Plan selected successfully!"
+        : "Doctor has selected your plan";
+    message =
+      checkUser.role == "athlete"
+        ? `You have selected ${plan} and phase ${planPhase}`
+        : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`;
+    const isSend = await createNotification(title, message, user);
     if (isSend);
     res.status(200).json({
       success: true,
@@ -996,11 +1002,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
 
   if (date) {
     query.date = date + "T00:00:00.000+00:00";
-<<<<<<< HEAD
     // query.date = date + "+00:00";
-=======
-    console.log(query.date);
->>>>>>> 1615bedf42b03a3493d9620c34bf2fc2c90f0809
   }
   if (doctor) {
     query.doctor = doctor;
@@ -1010,11 +1012,13 @@ exports.getSlots = catchAsyncError(async (req, res) => {
     let fdate = date + "T00:00:00.000";
 
     // Find all appointments by this user for the given doctor and date
-    const userAppointments = await appointmentModel.find({
-      doctor_trainer: doctor,
-      app_date: fdate,
-      user: user_id, // Assuming user_id is the field for the user who booked the appointment
-    }).select('app_time service_type');
+    const userAppointments = await appointmentModel
+      .find({
+        doctor_trainer: doctor,
+        app_date: fdate,
+        user: user_id, // Assuming user_id is the field for the user who booked the appointment
+      })
+      .select("app_time service_type");
 
     const dayAppointments = await appointmentModel.find({
       doctor_trainer: doctor,
@@ -1053,7 +1057,9 @@ exports.getSlots = catchAsyncError(async (req, res) => {
               ? doc[0].endTime
               : Calcslots[index + 1],
           ]);
-          return res.status(200).json({ slots: filterBookedSlots(slots, userAppointments) });
+          return res
+            .status(200)
+            .json({ slots: filterBookedSlots(slots, userAppointments) });
         });
       } else {
         await calculateTimeDifference(
@@ -1083,7 +1089,9 @@ exports.getSlots = catchAsyncError(async (req, res) => {
           slot,
           Calcslots[index + 1] == null ? doc[0].endTime : Calcslots[index + 1],
         ]);
-        return res.status(200).json({ slots: filterBookedSlots(slots, userAppointments) });
+        return res
+          .status(200)
+          .json({ slots: filterBookedSlots(slots, userAppointments) });
       });
     }
 
