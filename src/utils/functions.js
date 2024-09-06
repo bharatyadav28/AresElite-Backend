@@ -3,6 +3,10 @@ const ServiceModel = require("../models/ServiceTypeModel");
 const notificationModel = require("../models/notificationModel");
 const catchAsyncError = require("./catchAsyncError");
 const BookingServiceModel = require("../models/BookingService.js");
+const dayjs = require("dayjs");
+const customParseFormat = require("dayjs/plugin/customParseFormat");
+
+dayjs.extend(customParseFormat);
 
 const serviceDurations = {
   MedicalOfficeVisit: 30,
@@ -12,9 +16,8 @@ const serviceDurations = {
   null: 0,
 };
 
-const timeCache = new Map();
-
 const timeForService = async (alias) => {
+  const timeCache = new Map();
   if (timeCache.has(alias)) {
     return timeCache.get(alias);
   }
@@ -27,6 +30,7 @@ const timeForService = async (alias) => {
       "+duration"
     );
     time = service ? service.duration : bservice.duration;
+
     timeCache.set(alias, time); // Cache the result
   }
 
@@ -147,6 +151,35 @@ const createNotification = catchAsyncError(async (title, text, user) => {
   }
 });
 
+function hasTimePassed(dateStr, timeStr) {
+  // Parse the date part using ISO format
+  const date = dayjs(dateStr); // Parses the ISO date (e.g., 2024-09-05T00:00:00.000)
+
+  // Check if date parsing failed
+  if (!date.isValid()) {
+    console.error("Invalid date format");
+    return false;
+  }
+
+  // Parse the time part separately
+  const time = dayjs(timeStr, "hh:mm A");
+
+  // Check if time parsing failed
+  if (!time.isValid()) {
+    console.error("Invalid time format");
+    return false;
+  }
+
+  // Set the parsed time on the given date
+  const givenDateTime = date.hour(time.hour()).minute(time.minute());
+
+  // Get the current date and time
+  const now = dayjs();
+
+  // Compare the given date-time with the current time
+  return now.isAfter(givenDateTime);
+}
+
 module.exports = {
   addDuration,
   timeForService,
@@ -155,4 +188,5 @@ module.exports = {
   sendData,
   timeValidate,
   createNotification,
+  hasTimePassed,
 };

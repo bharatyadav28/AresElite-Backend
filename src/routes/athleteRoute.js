@@ -8,7 +8,13 @@ const {
   getProfile,
   editProfile,
   getUpcomingAppointments,
-  getBookings, getTransactions, dashboard, shipment, recentBookings, getPrescription
+  cancelBooking,
+  getBookings,
+  getTransactions,
+  dashboard,
+  shipment,
+  recentBookings,
+  getPrescription,
 } = require("../controllers/atheleteController");
 const { auth } = require("../middlewares/auth");
 
@@ -20,18 +26,19 @@ router.post("/register", register);
 router.post("/login", login);
 
 router.get("/get-profile", auth, getProfile);
-router.route('/transaction').get(auth, getTransactions);
+router.route("/transaction").get(auth, getTransactions);
 router.get("/get-bookings", auth, getBookings);
 router.get("/upcoming-appointments", auth, getUpcomingAppointments);
 router.get("/recent-bookings", auth, recentBookings);
 
-router.route('/prescription').get(auth, getPrescription);
+router.route("/prescription").get(auth, getPrescription);
 
 router.put("/reset-password", auth, resetPassword);
 router.put("/edit-profile", auth, editProfile);
-router.route('/dashboard').get(auth, dashboard);
+router.route("/dashboard").get(auth, dashboard);
 
-router.route('/shipment').get(auth, shipment);
+router.route("/shipment").get(auth, shipment);
 
+router.get("/cancel-booking/:id", auth, cancelBooking);
 
 module.exports = router;

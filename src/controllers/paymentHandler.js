@@ -8,6 +8,7 @@ const ServiceModel = require("../models/ServiceTypeModel");
 const AppointmentModel = require("../models/appointmentModel");
 const TransactionModel = require("../models/transactionModel");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
+const TeleSessionsModel = require("../models/TeleSessionsModel");
 
 exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
   const product = req.body.product;
@@ -109,10 +110,15 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
       await transaction.save();
 
       if (user?.is_online || false) {
-        const result = await OfflineAtheleteDrillsModel.create({
+        await OfflineAtheleteDrillsModel.create({
           client: new mongoose.Types.ObjectId(userId),
           appointment: new mongoose.Types.ObjectId(bookingId),
           numOfSessions: 2,
+        });
+
+        const result = await TeleSessionsModel.create({
+          user: new mongoose.Types.ObjectId(userId),
+          count: 2,
         });
         console.log("Result: ", result);
       }

@@ -27,6 +27,7 @@ const {
   DynamicDrillColumns,
   DynamicDrill,
 } = require("../models/DynamicDrillModel.js");
+const TeleSessionsModel = require("../models/TeleSessionsModel");
 
 const BookingServiceModel = require("../models/BookingService.js");
 const { s3Uploadv2 } = require("../utils/aws.js");
@@ -359,6 +360,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     end_time,
     doctor_trainer,
     location,
+    cost,
   } = req.body;
 
   console.log(
@@ -367,7 +369,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     app_time,
     end_time,
     doctor_trainer,
-    location
+    location,
+    cost
   );
   // if (service_type === "TrainingSessions") {
   if (
@@ -422,13 +425,16 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       });
     }
 
-    const TeleSession = await appointmentModel.countDocuments({
+    // const TeleSession = await appointmentModel.countDocuments({
+    //   client: new mongoose.Types.ObjectId(client_id),
+    //   service_type: "TeleSession",
+    // });
+
+    const TeleSession = await TeleSessionsModel.findOne({
       client: new mongoose.Types.ObjectId(client_id),
-      service_type: "TeleSession",
     });
 
-    console.log("teleSessions", TeleSession);
-    if (TeleSession > 2 && service_type === "TeleSession") {
+    if (TeleSession?.count < 1 && service_type === "TeleSession") {
       return res.status(400).json({
         success: false,
         message: "Cannot find non-booked session",
@@ -455,7 +461,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       end_time,
       doctor_trainer,
       location,
-      amount: service?.cost || bservice?.cost,
+      amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
         service_type === "ConsultationCall" ||
@@ -492,7 +498,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
           : "pending",
       bookingId: appointment._id,
       clientId: client_id,
-      amount: service?.cost || 0,
+      amount: service?.cost || bservice?.cost || cost || 0,
     });
     await transaction.save();
     // await offlineDrillupdate.save();

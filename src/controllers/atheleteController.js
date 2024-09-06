@@ -3,18 +3,23 @@ const catchAsyncError = require("../utils/catchAsyncError");
 const userModel = require("../models/userModel");
 const ErrorHandler = require("../utils/errorHandler");
 const { resetPasswordCode, newAccount } = require("../utils/mails");
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
-const { Types: { ObjectId } } = require('mongoose');
+const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
+const {
+  Types: { ObjectId },
+} = require("mongoose");
 const generateCode = require("../utils/generateCode");
-const { s3Uploadv2, s3UpdateImage } = require('../utils/aws.js');
-const transactionModel = require('../models/transactionModel');
+const { s3Uploadv2, s3UpdateImage } = require("../utils/aws.js");
+const transactionModel = require("../models/transactionModel");
 const DrillFormModel = require("../models/DrillFormModel.js");
 const ShipmentModel = require("../models/shipment.js");
-const DrillForm = require('../models/DrillModel.js');
-const PrescriptionsForm = require('../models/PrescriptionForm.js');
-const EvaluationForm = require('../models/EvaluationForms.js');
+const DrillForm = require("../models/DrillModel.js");
+const PrescriptionsForm = require("../models/PrescriptionForm.js");
+const EvaluationForm = require("../models/EvaluationForms.js");
 const OfflineDrill = require("../models/offlineDrillModel.js");
+const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills.js");
+const TeleSessionsModel = require("../models/TeleSessionsModel.js");
+const { hasTimePassed } = require("../utils/functions.js");
 
 exports.register = catchAsyncError(async (req, res, next) => {
   const {
@@ -31,7 +36,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
     zip,
     is_online,
     password,
-    mode
+    mode,
   } = req.body;
 
   if (
@@ -62,7 +67,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
   user = await userModel.create({
     firstName,
     lastName,
-    profilePic: 'picture',
+    profilePic: "picture",
     suffix,
     email,
     city,
@@ -75,7 +80,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
     is_online,
     password,
     role: "athlete",
-    mode:"N.A."
+    mode: "N.A.",
   });
   newAccount(email, `${firstName}${lastName}`, password);
   await user.save();
@@ -90,9 +95,11 @@ exports.login = catchAsyncError(async (req, res, next) => {
   if (!email || !password)
     return next(new ErrorHandler("Please enter your email and password", 400));
 
-  const user = await userModel.findOne({ email: { $regex: new RegExp(email, "i") } }).select("+password");
-  if (user.role !== 'athlete') {
-    return next(new ErrorHandler('Unauthorized! Access Denied ', 400))
+  const user = await userModel
+    .findOne({ email: { $regex: new RegExp(email, "i") } })
+    .select("+password");
+  if (user.role !== "athlete") {
+    return next(new ErrorHandler("Unauthorized! Access Denied ", 400));
   }
 
   if (!user) {
@@ -120,7 +127,7 @@ exports.sendForgotPasswordCode = catchAsyncError(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: "Code sent to your email."
+    message: "Code sent to your email.",
   });
 });
 
@@ -136,7 +143,7 @@ exports.validateForgotPasswordCode = catchAsyncError(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: "Code Validated Successfully."
+      message: "Code Validated Successfully.",
     });
   } else {
     return next(new ErrorHandler("Invalid Code.", 400));
@@ -217,45 +224,44 @@ exports.getBookings = catchAsyncError(async (req, res, next) => {
 
   const query = {};
 
-  if (status)
-    query.status = status;
+  if (status) query.status = status;
 
-  if (service_type)
-    query.service_type = service_type;
+  if (service_type) query.service_type = service_type;
 
-  if (service_status)
-    query.service_status = service_status;
+  if (service_status) query.service_status = service_status;
 
   const { userId } = jwt.verify(
     req.headers.authorization.split(" ")[1],
     process.env.JWT_SECRET
   );
-  const doctors = await userModel.find({ role: 'doctor' });
+  const doctors = await userModel.find({ role: "doctor" });
   req.userId = userId;
   let sortedAppointments = [];
 
-  const appointments = await appointmentModel.find({
-    $or: [
-      { "client._id": new ObjectId(userId), ...query },
-      { "client": userId, ...query }
-    ]
-  }).sort({ createdAt: 'desc' })
+  const appointments = await appointmentModel
+    .find({
+      $or: [
+        { "client._id": new ObjectId(userId), ...query },
+        { client: userId, ...query },
+      ],
+    })
+    .sort({ createdAt: "desc" })
     .skip((page - 1) * limit)
-    .limit(limit)
+    .limit(limit);
   appointments.map((app) => {
     let appoint = {
       ...app._doc,
       doctorData: doctors.map((doc) => {
         if (app.doctor_trainer === doc.firstName) {
-          return { email: doc.email, profilePic: doc.profilePic }
+          return { email: doc.email, profilePic: doc.profilePic };
         }
-      })
-    }
+      }),
+    };
     appoint && sortedAppointments.push(appoint);
   });
   res.status(200).json({
     success: true,
-    sortedAppointments
+    sortedAppointments,
   });
 });
 
@@ -285,10 +291,9 @@ exports.getTransactions = catchAsyncError(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Fetched transactions',
-    transactions: transactions
+    message: "Fetched transactions",
+    transactions: transactions,
   });
-
 });
 
 exports.dashboard = catchAsyncError(async (req, res, next) => {
@@ -299,62 +304,102 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
 
   const userDetails = await userModel.findById(userId);
   if (userDetails.is_online) {
-    const isDrill = await DrillFormModel.find({ clientId: userId })
-    const shipment = await ShipmentModel.find({ ClientId: new mongoose.Types.ObjectId(userId) }).select("-shippingAddress -productDescription -productImages -ClientId -plan -phase");
+    const isDrill = await DrillFormModel.find({ clientId: userId });
+    const shipment = await ShipmentModel.find({
+      ClientId: new mongoose.Types.ObjectId(userId),
+    }).select(
+      "-shippingAddress -productDescription -productImages -ClientId -plan -phase"
+    );
+
+    const upcomingAppointment = await appointmentModel.findOne({
+      client: userDetails._id.toString(),
+      service_type: "TeleSession",
+      service_status: "upcoming",
+    });
+
+    const isAppointmentComplete = hasTimePassed(
+      upcomingAppointment?.app_date,
+      upcomingAppointment?.app_time
+    );
+
+    const offlineDrillsData = await OfflineAtheleteDrillsModel.findOne({
+      client: new mongoose.Types.ObjectId(userDetails._id),
+    });
+    let offlineDrills = offlineDrillsData
+      ? offlineDrillsData.numOfSessions - offlineDrillsData.sessions.length
+      : 0;
+
+    offlineDrills = offlineDrills < 0 ? 0 : offlineDrills;
+
+    const teleBookingsData = await TeleSessionsModel.findOne({
+      user: new mongoose.Types.ObjectId(userDetails._id),
+    });
+
+    if (upcomingAppointment && isAppointmentComplete) {
+      upcomingAppointment.service_status = "completed";
+      upcomingAppointment.save();
+
+      teleBookingsData.count = teleBookingsData.count - 1;
+      teleBookingsData.save();
+    }
+
+    let teleBookings = teleBookingsData.count;
+    teleBookings = teleBookings < 0 ? 0 : teleBookings;
+
     if (isDrill.length > 0) {
       const calcPipe = [
         {
-          "$match": {
-            "clientId": new mongoose.Types.ObjectId(userId)
-          }
+          $match: {
+            clientId: new mongoose.Types.ObjectId(userId),
+          },
         },
         {
-          "$unwind": "$drill"
+          $unwind: "$drill",
         },
         {
-          "$group": {
-            "_id": "$_id",
-            "totalActivities": { "$sum": { "$size": "$drill.activities" } },
-            "completedActivities": {
-              "$sum": {
-                "$size": {
-                  "$filter": {
-                    "input": "$drill.activities",
-                    "as": "activity",
-                    "cond": { "$eq": ["$$activity.isComplete", true] }
-                  }
-                }
-              }
-            }
-          }
+          $group: {
+            _id: "$_id",
+            totalActivities: { $sum: { $size: "$drill.activities" } },
+            completedActivities: {
+              $sum: {
+                $size: {
+                  $filter: {
+                    input: "$drill.activities",
+                    as: "activity",
+                    cond: { $eq: ["$$activity.isComplete", true] },
+                  },
+                },
+              },
+            },
+          },
         },
         {
-          "$project": {
-            "_id": 0,
-            "totalActivities": 1,
-            "completedActivities": 1
-          }
-        }
-      ]
+          $project: {
+            _id: 0,
+            totalActivities: 1,
+            completedActivities: 1,
+          },
+        },
+      ];
 
       const pipelineForActiveDay = [
         {
           $match: {
             $or: [
               {
-                clientId: new mongoose.Types.ObjectId(userId)
+                clientId: new mongoose.Types.ObjectId(userId),
               },
               {
                 clientId: new mongoose.Types.ObjectId(userId),
-              }
-            ]
-          }
+              },
+            ],
+          },
         },
         {
-          $unwind: "$drill"
+          $unwind: "$drill",
         },
         {
-          $unwind: "$drill.activities"
+          $unwind: "$drill.activities",
         },
         {
           $group: {
@@ -364,20 +409,28 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
                 $cond: {
                   if: "$drill.activities.isComplete",
                   // then: {  $concat: [{ $toInt: "$drill.week" }, "-", "$drill.day", " for ", { $toString: "$drill.activities.isComplete" }] },
-                  then: { week: "$drill.week", day: "$drill.day", status: { $toString: "$drill.activities.isComplete" } },
+                  then: {
+                    week: "$drill.week",
+                    day: "$drill.day",
+                    status: { $toString: "$drill.activities.isComplete" },
+                  },
                   // then: 'd',
-                  else: { week: "$drill.week", day: "$drill.day", status: { $toString: "$drill.activities.isComplete" } }
-                }
-              }
-            }
-          }
+                  else: {
+                    week: "$drill.week",
+                    day: "$drill.day",
+                    status: { $toString: "$drill.activities.isComplete" },
+                  },
+                },
+              },
+            },
+          },
         },
         {
           $group: {
             _id: null,
             activeDay: { $push: "$activeDay" },
-          }
-        }
+          },
+        },
       ];
 
       const drillday = await DrillFormModel.aggregate(pipelineForActiveDay);
@@ -387,14 +440,20 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
         return {
           totalDrills: drill[0].totalActivities,
           completedDrills: drill[0].completedActivities,
-          drillProgress: (drill[0].completedActivities / drill[0].totalActivities) * 100
-        }
-      }
+          drillProgress:
+            (drill[0].completedActivities / drill[0].totalActivities) * 100,
+
+          teleSessions: { offlineDrills, teleBookings },
+        };
+      };
 
       function findFalseStatus(activities) {
         for (const activity of activities) {
           if (activity.status === "false") {
-            return { week: parseInt(activity.week), day: parseInt(activity.day) };
+            return {
+              week: parseInt(activity.week),
+              day: parseInt(activity.day),
+            };
           }
         }
         return null;
@@ -403,12 +462,16 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       return res.status(200).json({
         success: true,
         userDetails,
-        drillActiveStatus: drillday[0] !== undefined ? findFalseStatus(drillday[0].activeDay[0]) : { week: 1, day: 1 },
+        drillActiveStatus:
+          drillday[0] !== undefined
+            ? findFalseStatus(drillday[0].activeDay[0])
+            : { week: 1, day: 1 },
         drillDetails: runner(drill),
         shipment,
-        isShipment: Boolean(shipment)
+        isShipment: Boolean(shipment),
       });
     }
+
     return res.status(200).json({
       success: true,
       userDetails,
@@ -416,55 +479,61 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       drillDetails: {
         totalDrills: 0,
         completedDrills: 0,
-        drillProgress: 0
+        drillProgress: 0,
+        teleSessions: { offlineDrills, teleBookings },
       },
       shipment,
-      isShipment: Boolean(shipment)
+      isShipment: Boolean(shipment),
     });
   } else {
     const lineForTotalIsBooked = [
       {
-        "$match": {
-          "clientId": new mongoose.Types.ObjectId(userId)
-        }
+        $match: {
+          clientId: new mongoose.Types.ObjectId(userId),
+        },
       },
       {
-        "$unwind": "$sessions"
+        $unwind: "$sessions",
       },
       {
-        "$group": {
-          "_id": null,
-          "totalSessions": { "$sum": 1 },
-          "bookedSessions": {
-            "$sum": {
-              "$cond": ["$sessions.isBooked", 1, 0]
-            }
-          }
-        }
+        $group: {
+          _id: null,
+          totalSessions: { $sum: 1 },
+          bookedSessions: {
+            $sum: {
+              $cond: ["$sessions.isBooked", 1, 0],
+            },
+          },
+        },
       },
       {
-        "$project": {
-          "_id": 0,
-          "totalSessions": 1,
-          "bookedSessions": 1
-        }
-      }
+        $project: {
+          _id: 0,
+          totalSessions: 1,
+          bookedSessions: 1,
+        },
+      },
     ];
     const sessionResult = await OfflineDrill.aggregate(lineForTotalIsBooked);
-    const shipment = await ShipmentModel.find({ ClientId: new mongoose.Types.ObjectId(userId) }).select("-shippingAddress -productDescription -productImages -ClientId -plan -phase");
+    const shipment = await ShipmentModel.find({
+      ClientId: new mongoose.Types.ObjectId(userId),
+    }).select(
+      "-shippingAddress -productDescription -productImages -ClientId -plan -phase"
+    );
     return res.status(200).json({
       success: true,
       userDetails,
       sessionDetails: {
         totalSessions: sessionResult[0].totalSessions,
         completedSessions: sessionResult[0].bookedSessions,
-        sessionProgress: (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) * 100
+        sessionProgress:
+          (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) *
+          100,
       },
       shipment,
-      isShipment: Boolean(shipment)
+      isShipment: Boolean(shipment),
     });
   }
-
 });
 
 exports.shipment = catchAsyncError(async (req, res, next) => {
@@ -473,16 +542,17 @@ exports.shipment = catchAsyncError(async (req, res, next) => {
     process.env.JWT_SECRET
   );
 
-  const shipment = await ShipmentModel.findOne({ ClientId: new mongoose.Types.ObjectId(userId) });
+  const shipment = await ShipmentModel.findOne({
+    ClientId: new mongoose.Types.ObjectId(userId),
+  });
 
   if (!shipment) {
     return next(new ErrorHandler("No shipment found", 400));
   }
   return res.status(200).json({
     success: true,
-    shipment
+    shipment,
   });
-
 });
 
 // ==========================APPOINTMENT STUFF =============================================>
@@ -518,49 +588,58 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     query.status = status;
   }
   if (service_type) {
-    query.service_type = { $in: service_type.split(',') };
+    query.service_type = { $in: service_type.split(",") };
   }
   if (date) {
     const startDate = new Date(date);
     const endDate = new Date(date);
     endDate.setDate(endDate.getDate() + 1);
-    query.app_date = { $gte: startDate.toISOString().split('T')[0], $lt: endDate.toISOString().split('T')[0] };
+    query.app_date = {
+      $gte: startDate.toISOString().split("T")[0],
+      $lt: endDate.toISOString().split("T")[0],
+    };
   }
   if (searchQuery) {
-    const regex = new RegExp(`^${searchQuery}`, 'i');
+    const regex = new RegExp(`^${searchQuery}`, "i");
     const q = {};
     q.$or = [
-      { 'firstName': regex },
-      { 'lastName': regex },
-      { 'first_name': regex },
-      { 'last_name': regex },
-      { 'email': regex }
+      { firstName: regex },
+      { lastName: regex },
+      { first_name: regex },
+      { last_name: regex },
+      { email: regex },
     ];
     const users = await userModel.find(q);
-    const ids = users.map(user => user._id.toString());
+    const ids = users.map((user) => user._id.toString());
     query.client = { $in: ids };
   }
 
   let appointments = [];
 
-  const appointmentsArray = await appointmentModel.find(query)
-    .sort({ createdAt: 'desc' })
+  const appointmentsArray = await appointmentModel
+    .find(query)
+    .sort({ createdAt: "desc" })
     .skip((page - 1) * limit)
     .limit(limit)
     .exec();
 
-  await Promise.all(appointmentsArray.map(async (appoint) => {
-    const Presform = await PrescriptionsForm.find({ appointmentId: appoint._id });
-    const Evalform = await EvaluationForm.find({ appointmentId: appoint._id });
-    let appointmentWithEval = {
-      ...appoint.toObject(),
-      isFilled: Boolean(Presform.length),
-      presId: Boolean(Presform.length) ? Presform[0]._id : null,
-      evalId: Boolean(Evalform.length) ? Evalform[0]._id : null
-    };
-    appointments.push(appointmentWithEval);
-
-  }));
+  await Promise.all(
+    appointmentsArray.map(async (appoint) => {
+      const Presform = await PrescriptionsForm.find({
+        appointmentId: appoint._id,
+      });
+      const Evalform = await EvaluationForm.find({
+        appointmentId: appoint._id,
+      });
+      let appointmentWithEval = {
+        ...appoint.toObject(),
+        isFilled: Boolean(Presform.length),
+        presId: Boolean(Presform.length) ? Presform[0]._id : null,
+        evalId: Boolean(Evalform.length) ? Evalform[0]._id : null,
+      };
+      appointments.push(appointmentWithEval);
+    })
+  );
 
   const totalRecords = appointments.length;
   res.json({
@@ -575,20 +654,61 @@ exports.getPrescription = catchAsyncError(async (req, res, next) => {
   const appointmentId = req.query.appointmentId;
 
   if (!prescriptionId) {
-    return next(new ErrorHandler(" prescriptionId not received ", 404))
+    return next(new ErrorHandler(" prescriptionId not received ", 404));
   }
 
   if (appointmentId) {
-    const form = await PrescriptionsForm.findOne({ appointmentId: new mongoose.Types.ObjectId(appointmentId) });
+    const form = await PrescriptionsForm.findOne({
+      appointmentId: new mongoose.Types.ObjectId(appointmentId),
+    });
     return res.status(200).json({
       success: true,
-      form
+      form,
     });
   }
   const form = await PrescriptionsForm.findById(prescriptionId);
 
   res.status(200).json({
     success: true,
-    form
+    form,
+  });
+});
+
+exports.cancelBooking = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) {
+    return next(new ErrorHandler("Booking id not provided !"));
+  }
+
+  const appointment = await appointmentModel.findById(id);
+
+  if (
+    appointment.service_status === "completed" ||
+    appointment.service_status === "cancelled"
+  ) {
+    return next(
+      new ErrorHandler("Booking is already cancelled or completed !")
+    );
+  }
+  if (
+    appointment.service_type !== "OfflineVisit" ||
+    appointment.service_type !== "OfflineVisit" ||
+    appointment.service_type !== "AddTrainingSessions"
+  ) {
+    return next(
+      new ErrorHandler(
+        "Booking canceliation is not allowed for this service type !"
+      )
+    );
+  }
+
+  appointment.service_status = "cancelled";
+
+  appointment.save();
+
+  return res.status(200).json({
+    success: true,
+    message: "Booking cancelled successfully",
+    appointment,
   });
 });
