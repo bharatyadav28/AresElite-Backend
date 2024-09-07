@@ -486,40 +486,45 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       isShipment: Boolean(shipment),
     });
   } else {
-    const lineForTotalIsBooked = [
-      {
-        $match: {
-          clientId: new mongoose.Types.ObjectId(userId),
-        },
-      },
-      {
-        $unwind: "$sessions",
-      },
-      {
-        $group: {
-          _id: null,
-          totalSessions: { $sum: 1 },
-          bookedSessions: {
-            $sum: {
-              $cond: ["$sessions.isBooked", 1, 0],
-            },
-          },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          totalSessions: 1,
-          bookedSessions: 1,
-        },
-      },
-    ];
-    const testClient = await OfflineDrill.findOne({
-      clientId: new mongoose.Types.ObjectId("66d9e4cb904ec8d3a774c729"),
+    // const lineForTotalIsBooked = [
+    //   {
+    //     $match: {
+    //       clientId: new mongoose.Types.ObjectId(userId),
+    //     },
+    //   },
+    //   {
+    //     $unwind: "$sessions",
+    //   },
+    //   {
+    //     $group: {
+    //       _id: null,
+    //       totalSessions: { $sum: 1 },
+    //       bookedSessions: {
+    //         $sum: {
+    //           $cond: ["$sessions.isBooked", 1, 0],
+    //         },
+    //       },
+    //     },
+    //   },
+    //   {
+    //     $project: {
+    //       _id: 0,
+    //       totalSessions: 1,
+    //       bookedSessions: 1,
+    //     },
+    //   },
+    // ];
+    // const testClient = await OfflineDrill.findOne({
+    //   clientId: new mongoose.Types.ObjectId("66d9e4cb904ec8d3a774c729"),
+    // });
+    // console.log(testClient);
+
+    const sessionResult = await OfflineAtheleteDrillsModel.findOne({
+      client: new mongoose.Types.ObjectId(userId),
     });
-    console.log(testClient);
+
     // console.log(lineForTotalIsBooked)
-    const sessionResult = await OfflineDrill.aggregate(lineForTotalIsBooked);
+    // const sessionResult = await OfflineDrill.aggregate(lineForTotalIsBooked);
     // console.log(sessionResult)
     const shipment = await ShipmentModel.find({
       ClientId: new mongoose.Types.ObjectId(userId),
@@ -529,11 +534,11 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     return res.status(200).json({
       success: true,
       userDetails,
-      // sessionDetails: {
-      //   totalSessions: sessionResult[0].totalSessions,
-      //   completedSessions: sessionResult[0].bookedSessions,
-      //   sessionProgress: (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) * 100
-      // },
+      sessionDetails: {
+        totalSessions: sessionResult?.numOfSessions,
+        completedSessions: sessionResult?.sessions.length,
+        // sessionProgress: (sessionResult[0].bookedSessions / sessionResult[0].totalSessions) * 100
+      },
       shipment,
       isShipment: Boolean(shipment),
     });
@@ -695,9 +700,9 @@ exports.cancelBooking = catchAsyncError(async (req, res, next) => {
     );
   }
   if (
-    appointment.service_type !== "OfflineVisit" ||
-    appointment.service_type !== "OfflineVisit" ||
-    appointment.service_type !== "AddTrainingSessions"
+    !["OfflineVisit", "TeleSession", "AddTrainingSessions"].includes(
+      appointment.service_type
+    )
   ) {
     return next(
       new ErrorHandler(
@@ -714,5 +719,28 @@ exports.cancelBooking = catchAsyncError(async (req, res, next) => {
     success: true,
     message: "Booking cancelled successfully",
     appointment,
+  });
+});
+
+exports.alreadyBookedAppointment = catchAsyncError(async (req, res, next) => {
+  const { uid } = req.params;
+  if (!uid) {
+    return next(new ErrorHandler("Booking id not provided !"));
+  }
+
+  const appointments = await appointmentModel.find({
+    client: uid,
+    service_type: {
+      $in: ["OfflineVisit", "TeleSession", "AddTrainingSessions"],
+    },
+    service_status: "upcoming",
+  });
+
+  if (appointments.length > 0) {
+    return next(new ErrorHandler("You have already booked an appointment !"));
+  }
+
+  return res.status(200).json({
+    success: true,
   });
 });

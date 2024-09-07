@@ -15,6 +15,7 @@ const {
   shipment,
   recentBookings,
   getPrescription,
+  alreadyBookedAppointment,
 } = require("../controllers/atheleteController");
 const { auth } = require("../middlewares/auth");
 
@@ -40,5 +41,6 @@ router.route("/dashboard").get(auth, dashboard);
 router.route("/shipment").get(auth, shipment);
 
 router.get("/cancel-booking/:id", auth, cancelBooking);
+router.get("/already-booked/:uid", auth, alreadyBookedAppointment);
 
 module.exports = router;

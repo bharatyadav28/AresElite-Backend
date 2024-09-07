@@ -17,6 +17,7 @@ const serviceDurations = {
 };
 
 const timeForService = async (alias) => {
+  console.log("Alias: ", alias);
   const timeCache = new Map();
   if (timeCache.has(alias)) {
     return timeCache.get(alias);
@@ -30,6 +31,7 @@ const timeForService = async (alias) => {
       "+duration"
     );
     time = service ? service.duration : bservice.duration;
+    console.log(time, bservice);
 
     timeCache.set(alias, time); // Cache the result
   }
@@ -78,6 +80,7 @@ const sendData = (user, statusCode, res) => {
 };
 
 const calculateTimeDifference = async (time1, serviceType, time2, duration) => {
+  console.log("Service Type", serviceType);
   const [hours1, minutes1] = addDuration(
     convertTo24HourFormat(time1),
     await timeForService(serviceType)
@@ -194,6 +197,7 @@ function hasTimePassed(dateStr, timeStr) {
 }
 
 module.exports = {
+  filterBookedSlots,
   addDuration,
   timeForService,
   createArrayOfPairs,
