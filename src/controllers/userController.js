@@ -732,6 +732,7 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "Post-ConcussionEvaluation",
         "SportsVisionPerformanceEvaluation",
         "SportsVisionEvaluation",
+        "AddTrainingSessions",
       ],
     };
   }
@@ -1435,6 +1436,7 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "SportsVision",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
+      "AddTrainingSessions",
     ],
   };
   query.status = "paid";
