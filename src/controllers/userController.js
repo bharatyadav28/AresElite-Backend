@@ -468,10 +468,10 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "AddTrainingSessions" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "AddTrainingSessions" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
@@ -495,9 +495,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -554,8 +554,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-      service_type === "ConsultationCall" ||
-      service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -731,6 +731,7 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "SportsVision",
         "Post-ConcussionEvaluation",
         "SportsVisionPerformanceEvaluation",
+        "AddTrainingSessions",
       ],
     };
   }
@@ -940,7 +941,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       user,
       appointment,
     });
-  } catch (e) {}
+  } catch (e) { }
 });
 
 exports.getForm = catchAsyncError(async (req, res) => {
@@ -1434,6 +1435,7 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "SportsVision",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
+      "AddTrainingSessions",
     ],
   };
   query.status = "paid";
