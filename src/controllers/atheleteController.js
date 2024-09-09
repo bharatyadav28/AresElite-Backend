@@ -325,6 +325,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     const offlineDrillsData = await OfflineAtheleteDrillsModel.findOne({
       client: new mongoose.Types.ObjectId(userDetails._id),
     });
+    console.log("OfflineDrillsData:", offlineDrillsData);
     let offlineDrills = offlineDrillsData
       ? offlineDrillsData.numOfSessions - offlineDrillsData.sessions.length
       : 0;

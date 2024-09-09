@@ -731,6 +731,7 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "SportsVision",
         "Post-ConcussionEvaluation",
         "SportsVisionPerformanceEvaluation",
+        "SportsVisionEvaluation",
       ],
     };
   }
@@ -2053,7 +2054,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
 
   let result = await OfflineAtheleteDrillsModel.findOne({
     client: new mongoose.Types.ObjectId(cid),
-    appointment: new mongoose.Types.ObjectId(aid),
+    // appointment: new mongoose.Types.ObjectId(aid),
   });
 
   const updatedDrills = sessionData.sessions[0].drills?.map((item) => {
