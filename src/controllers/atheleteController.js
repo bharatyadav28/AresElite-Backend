@@ -217,6 +217,39 @@ exports.editProfile = catchAsyncError(async (req, res, next) => {
   res.status(200).json({ athlete });
 });
 
+exports.updateProfilePic = catchAsyncError(async (req, res, next) => {
+  try {
+    const { userId } = req; // Assuming you're using some authentication middleware
+    const file = req.files;
+
+    if (!file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No file uploaded" });
+    }
+
+    // Fetch the current profile picture URL from the database (pseudo-code)
+    const doctor = await userModel.findById(userId); // Replace with actual database call
+
+    // Update the profile picture on S3 and get the new URL
+    let result;
+    result = await s3Uploadv2(file[0]);
+
+    const newProfilePicUrl = result.Location;
+
+    // Update the doctor's profile in the database with the new URL
+    doctor.profilePic = newProfilePicUrl;
+    await doctor.save();
+
+    res.json({ success: true, profilePicUrl: newProfilePicUrl });
+  } catch (error) {
+    console.error("Error updating profile picture:", error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error updating profile picture" });
+  }
+});
+
 exports.getBookings = catchAsyncError(async (req, res, next) => {
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 10;

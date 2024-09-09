@@ -16,8 +16,10 @@ const {
   recentBookings,
   getPrescription,
   alreadyBookedAppointment,
+  updateProfilePic,
 } = require("../controllers/atheleteController");
 const { auth } = require("../middlewares/auth");
+const { upload } = require("../utils/aws");
 
 const router = express.Router();
 
@@ -36,6 +38,7 @@ router.route("/prescription").get(auth, getPrescription);
 
 router.put("/reset-password", auth, resetPassword);
 router.put("/edit-profile", auth, editProfile);
+router.put("/update-profile-pic", upload.any(), auth, updateProfilePic);
 router.route("/dashboard").get(auth, dashboard);
 
 router.route("/shipment").get(auth, shipment);
