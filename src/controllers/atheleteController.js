@@ -343,7 +343,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       teleBookingsData.save();
     }
 
-    let teleBookings = teleBookingsData.count;
+    let teleBookings = teleBookingsData?.count;
     teleBookings = teleBookings < 0 ? 0 : teleBookings;
 
     if (isDrill.length > 0) {
