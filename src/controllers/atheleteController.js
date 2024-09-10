@@ -565,6 +565,21 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     }).select(
       "-shippingAddress -productDescription -productImages -ClientId -plan -phase"
     );
+
+    const drillsData = await OfflineAtheleteDrillsModel.findOne({
+      client: new mongoose.Types.ObjectId(userId),
+      // appointment: new mongoose.Types.ObjectId(aid),
+    });
+
+    const sessionNames =
+      drillsData?.sessions?.reduce((acc, curr) => [...acc, curr.session], []) ||
+      [];
+
+    const drills = {
+      drillsData: drillsData || {},
+      sessionNames: sessionNames || [],
+    };
+
     return res.status(200).json({
       success: true,
       userDetails,
@@ -575,6 +590,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       },
       shipment,
       isShipment: Boolean(shipment),
+      drills,
     });
   }
 });
