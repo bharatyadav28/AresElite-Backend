@@ -2079,6 +2079,12 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
     result = await OfflineAtheleteDrillsModel.create(updatedData);
   }
 
+  const appointment = await appointmentModel.findById(aid);
+  if (appointment.service_status !== "completed") {
+    appointment.service_status = "completed";
+    await appointment.save();
+  }
+
   res.status(200).json({ success: true, result });
 });
 
