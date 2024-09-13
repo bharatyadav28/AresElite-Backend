@@ -926,8 +926,9 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   let message;
   try {
     const checkUser = await userModel.findById(userID);
+
     title =
-      checkUser.role == "athlete"
+      checkUser.role === "athlete"
         ? "Plan selected successfully!"
         : "Doctor has selected your plan";
     message =
@@ -1668,6 +1669,48 @@ exports.drillUpdate = catchAsyncError(async (req, res, next) => {
           arrayFilters: [{ "elem._id": new mongoose.Types.ObjectId(targetId) }],
         }
       );
+
+      const r = await DrillForm.findOne({
+        clientId: new mongoose.Types.ObjectId(userId),
+      });
+
+      let week = 0;
+      let day = 0;
+
+      const currentDayIndex = r.drill.findIndex((item) => {
+        const s = item.activities.find((i) => {
+          console.log(i);
+          return String(i._id) === String(targetId);
+        });
+        if (s) {
+          week = item.week;
+          day = item.day;
+          console.log("s", s);
+        }
+
+        return s ? true : false;
+      });
+
+      let nextDayNotify = false;
+      if (currentDayIndex >= 0 && currentDayIndex < r.drill.length - 1) {
+        nextDayNotify = true;
+      }
+      await createNotification(
+        "Session Completed",
+        `You have successfully completed the week ${week} Day ${day} drill`,
+        userId
+      );
+
+      if (nextDayNotify) {
+        await createNotification(
+          "Incomplete Drill",
+          `Your week ${r.drill[currentDayIndex + 1].week} day ${
+            r.drill[currentDayIndex + 1].day
+          } drill is not complete, Click here to complete`,
+          userId
+        );
+      }
+
       if (result.matchedCount > 0) {
         res
           .status(200)
@@ -2083,6 +2126,21 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
   if (appointment.service_status !== "completed") {
     appointment.service_status = "completed";
     await appointment.save();
+  }
+
+  await createNotification(
+    "Session Completed",
+    `You have successfully completed the ${newSession.session} drills`,
+    appointment.client
+  );
+  if (result.sessions.length < result.numOfSessions) {
+    await createNotification(
+      "Upcoming Drill",
+      `Your Session ${
+        Number(newSession.session.split(" ")[1]) + 1
+      } is pending. Click here to book it.`,
+      appointment.client
+    );
   }
 
   res.status(200).json({ success: true, result });
