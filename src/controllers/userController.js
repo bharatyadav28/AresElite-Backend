@@ -2138,7 +2138,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
       "Upcoming Drill",
       `Your Session ${
         Number(newSession.session.split(" ")[1]) + 1
-      } is pending. Click here to book it.`,
+      } is pending. Book it now`,
       appointment.client
     );
   }
