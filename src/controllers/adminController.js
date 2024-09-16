@@ -284,18 +284,18 @@ exports.evaluationFormMake = catchAsyncError(async (req, res, next) => {
     EvaluationModel.schema.add(
       values
         ? {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-              enum: values,
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+            enum: values,
+          },
+        }
         : {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+          },
+        }
     );
     res.status(200).json({
       success: true,
@@ -327,18 +327,18 @@ exports.prescriptionFormMake = catchAsyncError(async (req, res, next) => {
     PrescriptionModel.schema.add(
       values
         ? {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-              enum: values,
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+            enum: values,
+          },
+        }
         : {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+          },
+        }
     );
     res.status(200).json({
       success: true,
@@ -541,8 +541,16 @@ exports.getAllSlots = catchAsyncError(async (req, res) => {
   }
 
   const slots = await slotModel.find(filter).sort("desc");
+  const doctorNames = slots.map(slot => slot.doctor);
+  // console.log(doctorNames)
+  // Find users where firstname matches any doctor name
+  const doctors = await userModel.findOne({
+    firstName: { $in: doctorNames }
+  });
+  // console.log(doctors)
   res.status(200).json({
     data: slots,
+    doctors
   });
 });
 
@@ -695,12 +703,29 @@ exports.delUser = catchAsyncError(async (req, res, next) => {
 
 exports.delClinic = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
+  const clinic = await clinicModel.findById(id)
+  const clinicAddress = clinic.address
+  const today = new Date()
+  console.log("today", today)
+  const slot = await slotModel.findOne({ address: clinicAddress })
+  console.log(slot)
+  const futureSlot = await slotModel.findOne({
+    address: clinicAddress,
+    date: { $gt: today }  // Only find slots that are scheduled in the future
+  });
+  if (futureSlot) {
+    console.log("if state")
+    console.log(futureSlot)
+    return next(new ErrorHandler("Clinic is mapped to slots and cannot be deleted.", 400));
+  }
   try {
     const deletedClinic = await clinicModel.findByIdAndDelete(id);
 
     if (!deletedClinic) {
       return next(new ErrorHandler("User not found!", 404));
     }
+    // Delete all slots associated with the clinic's address
+    await slotModel.deleteMany({ address: clinicAddress });
     const clinics = await clinicModel.find();
     res.status(200).json({
       success: true,
