@@ -468,10 +468,10 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "AddTrainingSessions" ||
-          service_type === "OfflineVisit" ||
-          service_type === "TeleSession"
+        service_type === "ConsultationCall" ||
+        service_type === "AddTrainingSessions" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
@@ -495,9 +495,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "OfflineVisit" ||
-          service_type === "TeleSession"
+        service_type === "ConsultationCall" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -554,8 +554,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions"
+      service_type === "ConsultationCall" ||
+      service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -731,6 +731,7 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "SportsVision",
         "Post-ConcussionEvaluation",
         "SportsVisionPerformanceEvaluation",
+        "SportsVisionEvaluation",
         "AddTrainingSessions",
       ],
     };
@@ -925,8 +926,9 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   let message;
   try {
     const checkUser = await userModel.findById(userID);
+
     title =
-      checkUser.role == "athlete"
+      checkUser.role === "athlete"
         ? "Plan selected successfully!"
         : "Doctor has selected your plan";
     message =
@@ -941,7 +943,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       user,
       appointment,
     });
-  } catch (e) { }
+  } catch (e) {}
 });
 
 exports.getForm = catchAsyncError(async (req, res) => {
@@ -1667,6 +1669,48 @@ exports.drillUpdate = catchAsyncError(async (req, res, next) => {
           arrayFilters: [{ "elem._id": new mongoose.Types.ObjectId(targetId) }],
         }
       );
+
+      const r = await DrillForm.findOne({
+        clientId: new mongoose.Types.ObjectId(userId),
+      });
+
+      let week = 0;
+      let day = 0;
+
+      const currentDayIndex = r.drill.findIndex((item) => {
+        const s = item.activities.find((i) => {
+          console.log(i);
+          return String(i._id) === String(targetId);
+        });
+        if (s) {
+          week = item.week;
+          day = item.day;
+          console.log("s", s);
+        }
+
+        return s ? true : false;
+      });
+
+      let nextDayNotify = false;
+      if (currentDayIndex >= 0 && currentDayIndex < r.drill.length - 1) {
+        nextDayNotify = true;
+      }
+      await createNotification(
+        "Session Completed",
+        `You have successfully completed the week ${week} Day ${day} drill`,
+        userId
+      );
+
+      if (nextDayNotify) {
+        await createNotification(
+          "Incomplete Drill",
+          `Your week ${r.drill[currentDayIndex + 1].week} day ${
+            r.drill[currentDayIndex + 1].day
+          } drill is not complete, Click here to complete`,
+          userId
+        );
+      }
+
       if (result.matchedCount > 0) {
         res
           .status(200)
@@ -2055,7 +2099,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
 
   let result = await OfflineAtheleteDrillsModel.findOne({
     client: new mongoose.Types.ObjectId(cid),
-    appointment: new mongoose.Types.ObjectId(aid),
+    // appointment: new mongoose.Types.ObjectId(aid),
   });
 
   const updatedDrills = sessionData.sessions[0].drills?.map((item) => {
@@ -2076,6 +2120,27 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
     const updatedData = { ...sessionData, sessions: [newSession] };
 
     result = await OfflineAtheleteDrillsModel.create(updatedData);
+  }
+
+  const appointment = await appointmentModel.findById(aid);
+  if (appointment.service_status !== "completed") {
+    appointment.service_status = "completed";
+    await appointment.save();
+  }
+
+  await createNotification(
+    "Session Completed",
+    `You have successfully completed the ${newSession.session} drills`,
+    appointment.client
+  );
+  if (result.sessions.length < result.numOfSessions) {
+    await createNotification(
+      "Upcoming Drill",
+      `Your Session ${
+        Number(newSession.session.split(" ")[1]) + 1
+      } is pending. Book it now`,
+      appointment.client
+    );
   }
 
   res.status(200).json({ success: true, result });

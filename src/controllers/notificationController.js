@@ -1,20 +1,24 @@
 const notificationModel = require("../models/notificationModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
 exports.getAllNotifications = catchAsyncError(async (req, res) => {
   const { userId } = jwt.verify(
     req.headers.authorization.split(" ")[1],
     process.env.JWT_SECRET
   );
-  const notifications = await notificationModel.find({ user: userId });
-  const unreadCounts = await notificationModel.countDocuments({ user: userId, seen: false });
+  const notifications = await notificationModel
+    .find({ user: userId })
+    .sort({ createdAt: -1 });
+  const unreadCounts = await notificationModel.countDocuments({
+    user: userId,
+    seen: false,
+  });
   res.status(200).json({ notifications, unreadCounts });
 });
 
 exports.getNotification = catchAsyncError(async (req, res, next) => {
-
   const { userId } = jwt.verify(
     req.headers.authorization.split(" ")[1],
     process.env.JWT_SECRET
@@ -68,17 +72,17 @@ exports.markAllRead = catchAsyncError(async (req, res, next) => {
     process.env.JWT_SECRET
   );
 
-  await notificationModel.updateMany(
-    { user: userId },
-    { seen: true }
-  );
+  await notificationModel.updateMany({ user: userId }, { seen: true });
   res.status(200).json({ success: true });
 });
 
 exports.deleteNotification = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   if (!id) {
-    return next(new ErrorHandler("Please provide Notification id in params"), 400);
+    return next(
+      new ErrorHandler("Please provide Notification id in params"),
+      400
+    );
   }
   const deleted = await notificationModel.findByIdAndDelete(id);
   if (!deleted) {

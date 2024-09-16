@@ -159,7 +159,8 @@ const createNotification = catchAsyncError(async (title, text, user) => {
       text,
       user: new mongoose.Types.ObjectId(user),
     });
-    notification.save();
+    // notification.save();
+    console.log("notification", notification);
     return true;
   } catch (e) {
     console.log(e);
