@@ -14,7 +14,6 @@ exports.auth = async (req, res, next) => {
     });
   }
   try {
-
     const { userId } = jwt.verify(
       req.headers.authorization.split(" ")[1],
       process.env.JWT_SECRET
@@ -31,11 +30,9 @@ exports.auth = async (req, res, next) => {
     }
     next();
   } catch (error) {
-    return res
-      .status(401)
-      .send({
-        error: { message: `Unauthorized server error ${(error, token)}` },
-      });
+    return res.status(401).send({
+      error: { message: `Unauthorized server error ${(error, token)}` },
+    });
   }
 };
 

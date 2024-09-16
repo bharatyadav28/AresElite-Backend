@@ -21,6 +21,8 @@ const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills.js")
 const TeleSessionsModel = require("../models/TeleSessionsModel.js");
 const { hasTimePassed } = require("../utils/functions.js");
 
+const { createNotification } = require("../utils/functions.js");
+
 exports.register = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
@@ -84,6 +86,12 @@ exports.register = catchAsyncError(async (req, res, next) => {
   });
   newAccount(email, `${firstName}${lastName}`, password);
   await user.save();
+
+  await createNotification(
+    "Signup Successfully",
+    `Dear Athlete,You are required to book a service  in order to get a plan.`,
+    user._id
+  );
 
   const token = user.getJWTToken();
   res.status(201).json({ user, token });
@@ -749,17 +757,17 @@ exports.cancelBooking = catchAsyncError(async (req, res, next) => {
       new ErrorHandler("Booking is already cancelled or completed !")
     );
   }
-  if (
-    !["OfflineVisit", "TeleSession", "AddTrainingSessions"].includes(
-      appointment.service_type
-    )
-  ) {
-    return next(
-      new ErrorHandler(
-        "Booking canceliation is not allowed for this service type !"
-      )
-    );
-  }
+  // if (
+  //   !["OfflineVisit", "TeleSession", "AddTrainingSessions"].includes(
+  //     appointment.service_type
+  //   )
+  // ) {
+  //   return next(
+  //     new ErrorHandler(
+  //       "Booking canceliation is not allowed for this service type !"
+  //     )
+  //   );
+  // }
 
   appointment.service_status = "cancelled";
 

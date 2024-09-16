@@ -800,6 +800,7 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
   const searchQuery = req.query.searchQuery;
   const date = req.query.date;
   const query = {};
+  console.log("query:", req.query);
 
   query.status = "paid";
 
@@ -1427,6 +1428,7 @@ exports.getEvaluation = catchAsyncError(async (req, res, next) => {
 
 exports.completedReq = catchAsyncError(async (req, res) => {
   const { service_status, payment_status, date } = req.query;
+
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 10;
   const searchQuery = req.query.searchQuery;
@@ -1434,7 +1436,7 @@ exports.completedReq = catchAsyncError(async (req, res) => {
   query.service_type = {
     $in: [
       "ConcussionEval",
-      "SportsVision",
+      "SportsVisionEvaluation",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
       "AddTrainingSessions",
@@ -1847,6 +1849,8 @@ exports.deleteTrainingSessionModel = catchAsyncError(async (req, res, next) => {
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   const { clientId, sessionId, mode, appointmentId } = req.query;
 
+  const authUserId = req.userId;
+
   if (!clientId || !sessionId) {
     return res.status(400).json({
       success: false,
@@ -1898,6 +1902,22 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   client.mode = "offline";
   client.plan_payment = "pending";
   await client.save();
+
+  const checkUser = await userModel.findById(authUserId);
+
+  const title =
+    checkUser.role === "athlete"
+      ? "Plan selected successfully!"
+      : "Doctor has selected your plan";
+  const message =
+    checkUser.role == "athlete"
+      ? `You have selected ${
+          client.plan === "offline" ? "In-office" : client.plan
+        } plan`
+      : `A plan has been selected by doctor, your are in ${
+          client.plan === "offline" ? "In-office" : client.plan
+        } plan `;
+  const isSend = await createNotification(title, message, clientId);
 
   res.status(200).json({
     success: true,
@@ -2170,7 +2190,7 @@ exports.getAllSessions = catchAsyncError(async (req, res, next) => {
 });
 
 exports.createBookingService = catchAsyncError(async (req, res, next) => {
-  await BookingServiceModal.create(req.body);
+  await BookingServiceModel.create(req.body);
 
   res.status(201).json({ success: true });
 });
