@@ -9,9 +9,11 @@ const AppointmentModel = require("../models/appointmentModel");
 const TransactionModel = require("../models/transactionModel");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
 const TeleSessionsModel = require("../models/TeleSessionsModel");
+const TrainingSessionModel = require("../models/trainingSessionModel");
 
 exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
   const product = req.body.product;
+  console.log("Product", product);
   if (!product) {
     return res.status(404).send({
       success: false,
@@ -64,6 +66,46 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         message: "Booking not found",
       });
     let cost = await costForService(booking.service_type);
+
+    try {
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: cost * 100,
+        currency: "inr",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+      res.status(200).send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    } catch (error) {
+      res.status(500).send({ error: error.message });
+    }
+  }
+  if (product.type === "trainingSession") {
+    const costForService = async (tId) => {
+      let cost;
+      if (typeof cost === "undefined") {
+        const service = await TrainingSessionModel.findById(tId).select(
+          "+cost"
+        );
+        console.log(tId, TrainingSessionModel);
+        if (service) {
+          cost = service.cost;
+        }
+      }
+
+      return cost || 0;
+    };
+
+    const transaction = await TransactionModel.findById(product.tId);
+    if (!transaction)
+      return res.status(404).json({
+        success: true,
+        message: "Transaction not found",
+      });
+    console.log("tran", transaction);
+    let cost = await costForService(transaction.plan);
 
     try {
       const paymentIntent = await stripe.paymentIntents.create({
@@ -149,6 +191,29 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
 
       await booking.save();
       await transaction.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Updated",
+      });
+    } else if (type === "trainingSession") {
+      const transaction = await TransactionModel.findById(req.body.tId);
+
+      if (!transaction) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Transaction not found" });
+      }
+
+      transaction.payment_status = isPaid ? "paid" : "failed";
+
+      await transaction.save();
+
+      if ((transaction.payment_status = "paid")) {
+        const user = await UserModel.findById(userId);
+        user.plan_payment = "paid";
+        user.save();
+      }
 
       res.status(200).json({
         success: true,

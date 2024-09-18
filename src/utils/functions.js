@@ -30,6 +30,10 @@ const timeForService = async (alias) => {
     const bservice = await BookingServiceModel.findOne({ alias }).select(
       "+duration"
     );
+
+    if (!service && !bservice) {
+      return;
+    }
     time = service ? service.duration : bservice.duration;
     console.log(time, bservice);
 

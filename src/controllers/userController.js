@@ -49,6 +49,19 @@ exports.getProfile = catchAsyncError(async (req, res, next) => {
   });
 });
 
+exports.getAthleteProfile = catchAsyncError(async (req, res, next) => {
+  const email = req.query.email;
+  const user = await userModel.findOne({ email: email, role: "athlete" });
+
+  if (!user) {
+    return next(new ErrorHandler("User not found.", 404));
+  }
+
+  res.status(200).json({
+    user,
+  });
+});
+
 exports.editClientProfile = catchAsyncError(async (req, res, next) => {
   const { userId } = req.query;
   const {
@@ -733,6 +746,8 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "SportsVisionPerformanceEvaluation",
         "SportsVisionEvaluation",
         "AddTrainingSessions",
+        "GlassesExam",
+        "ContactLensExam",
       ],
     };
   }
@@ -784,10 +799,13 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
   const totalRecords = await appointments.length;
 
   res.json({
-    appointments: appointments,
+    appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
@@ -1440,6 +1458,8 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
       "AddTrainingSessions",
+      "GlassesExam",
+      "ContactLensExam",
     ],
   };
   query.status = "paid";
@@ -1465,7 +1485,7 @@ exports.completedReq = catchAsyncError(async (req, res) => {
   }
   const appointmentsArray = await appointmentModel
     .find(query)
-    .sort({ createdAt: "desc" })
+    .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
     .exec();
@@ -1488,9 +1508,13 @@ exports.completedReq = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
   res.status(200).json({
     success: true,
-    appointments,
+    appointments: result,
   });
 });
 
@@ -1849,6 +1873,8 @@ exports.deleteTrainingSessionModel = catchAsyncError(async (req, res, next) => {
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   const { clientId, sessionId, mode, appointmentId } = req.query;
 
+  const { doctor_trainer, service_type } = req.body;
+  console.log("sdsd", doctor_trainer, service_type);
   const authUserId = req.userId;
 
   if (!clientId || !sessionId) {
@@ -1891,6 +1917,10 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   const fdate = dater.setUTCHours(0, 0, 0, 0);
   const transaction = await transactionModel.create({
     payment_status: "pending",
+    doctor: doctor_trainer,
+    bookingId: appointmentId,
+    plan: sessionId,
+    service_type,
     date: fdate,
     clientId,
     amount: TrainingSession.cost,

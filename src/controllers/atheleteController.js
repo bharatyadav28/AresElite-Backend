@@ -19,6 +19,7 @@ const EvaluationForm = require("../models/EvaluationForms.js");
 const OfflineDrill = require("../models/offlineDrillModel.js");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills.js");
 const TeleSessionsModel = require("../models/TeleSessionsModel.js");
+const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const { hasTimePassed } = require("../utils/functions.js");
 
 const { createNotification } = require("../utils/functions.js");
@@ -343,6 +344,9 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     process.env.JWT_SECRET
   );
 
+  const services = await ServiceTypeModel.find();
+  console.log("Services:", services);
+
   const userDetails = await userModel.findById(userId);
   if (userDetails.is_online) {
     const isDrill = await DrillFormModel.find({ clientId: userId });
@@ -486,6 +490,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
             (drill[0].completedActivities / drill[0].totalActivities) * 100,
 
           teleSessions: { offlineDrills, teleBookings },
+          services,
         };
       };
 
@@ -511,6 +516,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
         drillDetails: runner(drill),
         shipment,
         isShipment: Boolean(shipment),
+        services,
       });
     }
 
@@ -526,6 +532,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       },
       shipment,
       isShipment: Boolean(shipment),
+      services,
     });
   } else {
     // const lineForTotalIsBooked = [
@@ -599,6 +606,7 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
       shipment,
       isShipment: Boolean(shipment),
       drills,
+      services,
     });
   }
 });

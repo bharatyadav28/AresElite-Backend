@@ -44,6 +44,7 @@ const {
   getDrillsAllInputs,
   updateProfilePic,
   createBookingService,
+  getAthleteProfile,
 } = require("../controllers/userController");
 const { upload } = require("../utils/aws");
 
@@ -69,6 +70,8 @@ router.get("/get-evaluations", auth, getEvaluation);
 router.get("/get-plans", auth, getPlans);
 router.get("/get-completed-req", auth, completedReq);
 router.get("/get-profile", auth, getProfile);
+router.get("/get-profile/athlete", auth, getAthleteProfile);
+
 router.get("/recent-bookings", auth, recentBookings);
 router.get("/recent-prescriptions", auth, recentPrescriptions);
 router.get("/in-queue-requests", auth, inQueueRequests);
