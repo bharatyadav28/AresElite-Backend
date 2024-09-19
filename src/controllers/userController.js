@@ -17,6 +17,7 @@ const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
 const moment = require("moment");
 const EvalForm = require("../models/FormModel");
+
 const EvalutionsForm = require("../models/EvaluationForms");
 const PrescriptionsForm = require("../models/PrescriptionForm.js");
 const DiagnosisForm = require("../models/DiagnosisForm.js");
@@ -965,6 +966,7 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   } catch (e) {}
 });
 
+const normalize = (str) => str.replace(/\s+/g, "").toLowerCase();
 exports.getForm = catchAsyncError(async (req, res) => {
   // // const schemaContent = fs.readFileSync(path.resolve(baseSchemaPathEval), 'utf8');
   // try {
@@ -986,10 +988,21 @@ exports.getForm = catchAsyncError(async (req, res) => {
   //     res.status(500).send('Internal Server Error');
   // }
   const name = req.query.name;
+  const serviceName = req.query.serviceType;
+
   if (!name || typeof name !== "string") {
     return res.status(400).json({ success: false, message: "Invalid input" });
   }
-  const doc = await EvalForm.findOne({ name });
+  // const doc = await EvalForm.findOne({ name });
+  const result = await EvalForm.findOne({ name }).populate(
+    "serviceType.service",
+    "name"
+  );
+
+  const doc = result?.serviceType.find((s) => {
+    return normalize(s.service.name) === normalize(serviceName);
+  });
+
   if (!doc || doc.length < 1) {
     return res.status(400).json({ success: false, message: "Not found" });
   }
