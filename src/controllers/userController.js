@@ -68,7 +68,7 @@ exports.editClientProfile = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -89,7 +89,7 @@ exports.editClientProfile = catchAsyncError(async (req, res, next) => {
 
   firstName && (doctor.firstName = firstName);
   lastName && (doctor.lastName = lastName);
-  suffix && (doctor.suffix = suffix);
+  prefix && (doctor.prefix = prefix);
   gender && (doctor.gender = gender);
   dob && (doctor.dob = dob);
   address && (doctor.address = address);
@@ -113,7 +113,7 @@ exports.editDoctorProfile = catchAsyncError(async (req, res, next) => {
     lastName,
     startTime,
     endTime,
-    suffix,
+    prefix,
     gender,
     dob,
     address,
@@ -136,7 +136,7 @@ exports.editDoctorProfile = catchAsyncError(async (req, res, next) => {
   lastName && (doctor.lastName = lastName);
   startTime && (doctor.startTime = startTime);
   endTime && (doctor.lastName = endTime);
-  suffix && (doctor.suffix = suffix);
+  prefix && (doctor.prefix = prefix);
   gender && (doctor.gender = gender);
   dob && (doctor.dob = dob);
   address && (doctor.address = address);
@@ -285,7 +285,7 @@ exports.registerClient = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -299,7 +299,7 @@ exports.registerClient = catchAsyncError(async (req, res, next) => {
   if (
     !firstName ||
     !lastName ||
-    !suffix ||
+    !prefix ||
     !address ||
     !email ||
     !city ||
@@ -318,7 +318,7 @@ exports.registerClient = catchAsyncError(async (req, res, next) => {
   user = await userModel.create({
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,

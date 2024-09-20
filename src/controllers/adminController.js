@@ -76,7 +76,7 @@ exports.registerDoctor = catchAsyncError(async (req, res, next) => {
     lastName,
     startTime,
     endTime,
-    suffix,
+    prefix,
     gender,
     dob,
     address,
@@ -101,7 +101,7 @@ exports.registerDoctor = catchAsyncError(async (req, res, next) => {
     lastName,
     startTime,
     endTime,
-    suffix,
+    prefix,
     gender,
     dob,
     address,
@@ -127,7 +127,7 @@ exports.registerAthlete = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -136,13 +136,14 @@ exports.registerAthlete = catchAsyncError(async (req, res, next) => {
     gender,
     address,
     zip,
+    is_online,
     mode,
   } = req.body;
 
   if (
     !firstName ||
     !lastName ||
-    !suffix ||
+    !prefix ||
     !address ||
     !email ||
     !city ||
@@ -162,7 +163,7 @@ exports.registerAthlete = catchAsyncError(async (req, res, next) => {
   user = await userModel.create({
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -173,6 +174,7 @@ exports.registerAthlete = catchAsyncError(async (req, res, next) => {
     zip,
     password: `${phone}${firstName}`,
     role: "athlete",
+    is_online,
     mode,
   });
   newAccount(email, `${firstName}${lastName}`, `${phone}${firstName}`);

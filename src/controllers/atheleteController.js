@@ -28,7 +28,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -45,7 +45,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
   if (
     !firstName ||
     !lastName ||
-    !suffix ||
+    !prefix ||
     !email ||
     !city ||
     !phone ||
@@ -71,7 +71,7 @@ exports.register = catchAsyncError(async (req, res, next) => {
     firstName,
     lastName,
     profilePic: "picture",
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -194,7 +194,7 @@ exports.editProfile = catchAsyncError(async (req, res, next) => {
   const {
     firstName,
     lastName,
-    suffix,
+    prefix,
     email,
     city,
     phone,
@@ -211,7 +211,7 @@ exports.editProfile = catchAsyncError(async (req, res, next) => {
   firstName && (athlete.firstName = firstName);
   lastName && (athlete.lastName = lastName);
   file && (athlete.profilePic = location);
-  suffix && (athlete.suffix = suffix);
+  prefix && (athlete.prefix = prefix);
   gender && (athlete.gender = gender);
   dob && (athlete.dob = dob);
   address && (athlete.address = address);

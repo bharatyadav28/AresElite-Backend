@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
-const roleEnum = ['admin', 'doctor', 'athlete'];
+const roleEnum = ["admin", "doctor", "athlete"];
 const paymentStatus = ["paid", "pending", "failed", "N.A."];
-const modeStatus= ["N.A.","online","offline"]
+const modeStatus = ["N.A.", "online", "offline"];
 
 const userSchema = new mongoose.Schema({
   firstName: {
@@ -18,11 +18,12 @@ const userSchema = new mongoose.Schema({
   profilePic: {
     type: String,
     trim: true,
-    default: 'https://icon-library.com/images/icon-user/icon-user-15.jpg'
+    default: "https://icon-library.com/images/icon-user/icon-user-15.jpg",
   },
-  suffix: {
+  prefix: {
     type: String,
     trim: true,
+    default: "Mr",
   },
   email: {
     type: String,
@@ -69,19 +70,19 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     trim: true,
-    default: true
+    default: true,
   },
   plan: {
     type: String,
-    default: null
+    default: null,
   },
   phase: {
-    type: String
+    type: String,
   },
   plan_payment: {
     type: String,
     enum: paymentStatus,
-    default: 'N.A.'
+    default: "N.A.",
   },
   password: {
     type: String,
@@ -103,11 +104,11 @@ const userSchema = new mongoose.Schema({
   temp_code: {
     type: String,
   },
-  mode:{
-    type:String,
-    enum:modeStatus,
-    default:"N.A."
-  }
+  mode: {
+    type: String,
+    enum: modeStatus,
+    default: "N.A.",
+  },
 });
 
 userSchema.pre("save", async function (next) {
