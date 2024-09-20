@@ -746,7 +746,7 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
         "Post-ConcussionEvaluation",
         "SportsVisionPerformanceEvaluation",
         "SportsVisionEvaluation",
-        "AddTrainingSessions",
+        // "AddTrainingSessions",
         "GlassesExam",
         "ContactLensExam",
       ],
