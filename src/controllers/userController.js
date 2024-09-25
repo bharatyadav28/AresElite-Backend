@@ -955,7 +955,18 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       checkUser.role == "athlete"
         ? `You have selected ${plan} and phase ${planPhase}`
         : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`;
-    const isSend = await createNotification(title, message, user);
+
+    let doctor = "";
+    if (checkUser.role !== "athlete") {
+      const lastAppointment = appointmentModel
+        .find({ client: user })
+        .sort({ createdAt: -1 });
+      if (lastAppointment) {
+        doctor = lastAppointment[0].doctor_trainer;
+      }
+    }
+
+    const isSend = await createNotification(title, message, user, doctor);
     if (isSend);
     res.status(200).json({
       success: true,
@@ -1943,6 +1954,7 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
 
   client.plan = "offline";
   client.mode = "offline";
+  client.is_online = "false";
   client.plan_payment = "pending";
   await client.save();
 
@@ -1960,9 +1972,23 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
       : `A plan has been selected by doctor, your are in ${
           client.plan === "offline" ? "In-office" : client.plan
         } plan `;
-  const isSend = await createNotification(title, message, clientId);
 
-  res.status(200).json({
+  let doctor = "";
+  if (checkUser.role !== "athlete") {
+    const lastAppointment = await appointmentModel
+      .find({ client: clientId })
+      .sort({ createdAt: -1 });
+
+    if (lastAppointment && lastAppointment.length > 0) {
+      doctor = lastAppointment[0].doctor_trainer;
+    }
+  }
+
+  console.log("doctor", doctor);
+
+  const isSend = await createNotification(title, message, clientId, doctor);
+
+  return res.status(200).json({
     success: true,
     SessionForUser,
   });

@@ -156,12 +156,14 @@ const createArrayOfPairs = (arr) => {
   return pairsArray;
 };
 
-const createNotification = catchAsyncError(async (title, text, user) => {
+const createNotification = async (title, text, user, doctor) => {
+  console.log("d", doctor);
   try {
     const notification = await notificationModel.create({
       title,
       text,
       user: new mongoose.Types.ObjectId(user),
+      doctor,
     });
     // notification.save();
     console.log("notification", notification);
@@ -170,7 +172,7 @@ const createNotification = catchAsyncError(async (title, text, user) => {
     console.log(e);
     return false;
   }
-});
+};
 
 function hasTimePassed(dateStr, timeStr) {
   // Parse the date part using ISO format

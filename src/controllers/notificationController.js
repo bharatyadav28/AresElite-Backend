@@ -2,6 +2,7 @@ const notificationModel = require("../models/notificationModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const ErrorHandler = require("../utils/errorHandler");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 
 exports.getAllNotifications = catchAsyncError(async (req, res) => {
   const { userId } = jwt.verify(
@@ -71,8 +72,11 @@ exports.markAllRead = catchAsyncError(async (req, res, next) => {
     req.headers.authorization.split(" ")[1],
     process.env.JWT_SECRET
   );
+  console.log("userId: ", userId);
 
-  await notificationModel.updateMany({ user: userId }, { seen: true });
+  const user = new mongoose.Types.ObjectId(userId);
+  console.log("user: ", user);
+  await notificationModel.updateMany({ user: user }, { seen: true });
   res.status(200).json({ success: true });
 });
 
