@@ -1428,7 +1428,57 @@ exports.getShipments = catchAsyncError(async (req, res, next) => {
 exports.updateShipment = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
   const formdata = req.body.data;
-  const shipment = await ShipmentModel.findByIdAndUpdate(id, formdata);
+
+  const seriesEvents = [
+    "order placed",
+    "order dispatched",
+    "shipped",
+    "out for delivery",
+    "delivered",
+  ];
+  const incomingStatus = formdata?.shipmentStatus?.map((item) => item.status);
+  const updatedStatus = [];
+  let i = 0,
+    j = 0;
+  let forward = true;
+
+  while (i <= 5 && forward) {
+    if (incomingStatus[i] === seriesEvents[j]) {
+      updatedStatus.push(formdata?.shipmentStatus[i]);
+      if (
+        i === incomingStatus.length - 1 &&
+        seriesEvents[j] === incomingStatus[i]
+      ) {
+        forward = false;
+      }
+      i++, j++;
+    } else {
+      updatedStatus.push({
+        status: seriesEvents[j],
+        startDate:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1]
+            .startDate,
+        endDate:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1].endDate,
+        trackingId:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1]
+            .trackingId,
+      });
+
+      if (
+        i === incomingStatus.length - 1 &&
+        seriesEvents[j] === incomingStatus[i]
+      ) {
+        forward = false;
+      }
+      j++;
+    }
+  }
+
+  const updatedFormData = { ...formdata, shipmentStatus: updatedStatus };
+  console.log("updatedStatus", updatedFormData);
+
+  const shipment = await ShipmentModel.findByIdAndUpdate(id, updatedFormData);
   if (!shipment) {
     return next(new ErrorHandler("Shipment not found or updated", 400));
   } else {
