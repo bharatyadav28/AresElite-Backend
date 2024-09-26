@@ -40,6 +40,7 @@ const CamelcaseString = require("../utils/CamelcaseString");
 const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 
 const mongoose = require("mongoose");
+const shipment = require("../models/shipment");
 
 const sendData = (user, statusCode, res) => {
   const token = user.getJWTToken();
@@ -884,6 +885,60 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
     users,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
+  });
+});
+
+exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
+  const page = parseInt(req.query.page_no) || 1;
+  const limit = parseInt(req.query.per_page_count) || 8;
+  const searchQuery = req.query.searchQuery;
+  const filter = req.query.filter;
+  console.log("filter", req.query);
+
+  let query = { role: ["athlete"], is_online: true };
+  if (searchQuery) {
+    const regex = new RegExp(`^${searchQuery}`, "i");
+    query.$or = [
+      { firstName: regex },
+      { lastName: regex },
+      { first_name: regex },
+      { last_name: regex },
+      { email: regex },
+      { role: regex },
+    ];
+  }
+  let users = await userModel.find(query).sort({ createdAt: "desc" }).lean();
+  // .skip((page - 1) * limit)
+  // .limit(limit)
+  // .exec();
+
+  const shipments = await ShipmentModel.find();
+
+  users.forEach((user) => {
+    const found = shipments.find(
+      (item) =>
+        String(item.ClientId) === String(user._id) &&
+        item.shipmentStatus.length === 5
+    );
+
+    user["is_completed"] = found ? true : false;
+  });
+
+  console.log(users.length);
+
+  if (filter) {
+    users = users.filter((user) => user.is_completed === Boolean(filter));
+  }
+  const totalUsers = users.length;
+
+  // console.log("users: ", updatedUsers);
+  users = users.slice((page - 1) * limit, (page - 1) * limit + limit);
+
+  res.json({
+    users,
+    totalPages: Math.ceil(totalUsers / limit),
+    currentPage: page,
+    shipments,
   });
 });
 

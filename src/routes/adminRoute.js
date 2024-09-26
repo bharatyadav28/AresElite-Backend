@@ -65,6 +65,7 @@ const {
   updateColumn,
   deleteColumn,
   getColumns,
+  getAllShipmentUsers,
 } = require("../controllers/adminController");
 
 const {
@@ -159,6 +160,7 @@ router.get("/get_all_doctor", auth, isAdmin, getAllDoc);
 router.get("/get_all_clinics", auth, isAdmin, getAllClinics);
 router.get("/get_all_slots", auth, isAdmin, getAllSlots);
 router.get("/get_all_users", auth, isAdmin, getAllUsers);
+router.get("/get_all_shipment_users", auth, isAdmin, getAllShipmentUsers);
 router.get("/clinic_status", auth, isAdmin, getClinicStatus);
 
 router.delete("/delete_doc", auth, isAdmin, delDoc);
