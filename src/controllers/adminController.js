@@ -893,7 +893,7 @@ exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
   const limit = parseInt(req.query.per_page_count) || 8;
   const searchQuery = req.query.searchQuery;
   const filter = req.query.filter;
-  console.log("filter", req.query);
+ 
 
   let query = { role: ["athlete"], is_online: true };
   if (searchQuery) {
@@ -907,7 +907,7 @@ exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
       { role: regex },
     ];
   }
-  let users = await userModel.find(query).sort({ createdAt: "desc" }).lean();
+  let users = await userModel.find(query).sort({ $natural: -1 }).lean();
   // .skip((page - 1) * limit)
   // .limit(limit)
   // .exec();
@@ -924,10 +924,12 @@ exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
     user["is_completed"] = found ? true : false;
   });
 
-  console.log(users.length);
+
 
   if (filter) {
-    users = users.filter((user) => user.is_completed === Boolean(filter));
+    users = users.filter(
+      (user) => user.is_completed === (filter === "true" ? true : false)
+    );
   }
   const totalUsers = users.length;
 
