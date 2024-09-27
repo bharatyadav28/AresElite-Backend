@@ -392,7 +392,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
   );
   // if (service_type === "TrainingSessions") {
   if (
-    service_type === "AddTrainingSessions" ||
+    service_type === "TrainingSessions" ||
     service_type === "OfflineVisit" ||
     service_type === "TeleSession"
   ) {
@@ -483,7 +483,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       status:
         service_type === "Consultation" ||
         service_type === "ConsultationCall" ||
-        service_type === "AddTrainingSessions" ||
+        service_type === "TrainingSessions" ||
         service_type === "OfflineVisit" ||
         service_type === "TeleSession"
           ? "paid"
@@ -831,7 +831,7 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
         "MedicalOfficeVisit",
         "TrainingSession",
         "Medical/OfficeVisit",
-        "AddTrainingSessions",
+        "TrainingSessions"
       ],
     };
   }
@@ -1481,7 +1481,7 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "SportsVisionEvaluation",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
-      "AddTrainingSessions",
+      "TrainingSessions",
       "GlassesExam",
       "ContactLensExam",
     ],

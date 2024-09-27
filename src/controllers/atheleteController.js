@@ -797,7 +797,7 @@ exports.alreadyBookedAppointment = catchAsyncError(async (req, res, next) => {
   const appointments = await appointmentModel.find({
     client: uid,
     service_type: {
-      $in: ["OfflineVisit", "TeleSession", "AddTrainingSessions"],
+      $in: ["OfflineVisit", "TeleSession","TrainingSessions"],
     },
     service_status: "upcoming",
   });
