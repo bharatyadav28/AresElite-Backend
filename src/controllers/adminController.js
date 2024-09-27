@@ -403,7 +403,8 @@ function createDateWithTime(timeString) {
 }
 
 exports.addSlot = catchAsyncError(async (req, res, next) => {
-  let { startDate, endDate, doctor, address, startTime, endTime } = req.body;
+  let { startDate, endDate, doctor, address, startTime, endTime, clinic } =
+    req.body;
   console.log(req.body);
   let cdate = startDate.split("/")[0].length;
 
@@ -493,6 +494,7 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
     slot = await slotModel.create({
       date: formattedDate,
       doctor,
+      clinic,
       address,
       startTime,
       endTime,
@@ -513,6 +515,7 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
       slot = await slotModel.create({
         date,
         doctor,
+        clinic,
         address,
         startTime,
         endTime,
@@ -544,14 +547,16 @@ exports.getAllSlots = catchAsyncError(async (req, res) => {
     filter.date = { $gte: formattedDate, $lt: endDate };
   }
 
-  const slots = await slotModel.find(filter).sort("desc");
+  const slots = await slotModel.find(filter).sort("desc").populate("clinic");
   const doctorNames = slots.map((slot) => slot.doctor);
-  // console.log(doctorNames)
+  // console.log(doctorNames);
   // Find users where firstname matches any doctor name
-  const doctors = await userModel.findOne({
+  const doctors = await userModel.find({
     firstName: { $in: doctorNames },
+    role: "doctor",
   });
   // console.log(doctors)
+
   res.status(200).json({
     data: slots,
     doctors,
@@ -619,6 +624,7 @@ exports.updateSlot = catchAsyncError(async (req, res, next) => {
     {
       date: formattedDate,
       doctor: formdata.doctor,
+      clinic: formdata.clinic,
       address: formdata.address,
       startTime: formdata.startTime,
       endTime: formdata.endTime,
@@ -893,7 +899,6 @@ exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
   const limit = parseInt(req.query.per_page_count) || 8;
   const searchQuery = req.query.searchQuery;
   const filter = req.query.filter;
- 
 
   let query = { role: ["athlete"], is_online: true };
   if (searchQuery) {
@@ -923,8 +928,6 @@ exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
 
     user["is_completed"] = found ? true : false;
   });
-
-
 
   if (filter) {
     users = users.filter(
