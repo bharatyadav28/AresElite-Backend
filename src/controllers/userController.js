@@ -639,8 +639,11 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     .find(query)
     .sort({ createdAt: "desc" })
     .skip((page - 1) * limit)
-    .limit(limit)
-    .exec();
+    .limit(limit);
+  // .populate("client", "profilePic");
+
+  console.log(appointments[0]);
+
   const totalRecords = await appointmentModel.countDocuments(query);
   res.json({
     appointments: appointments,
@@ -735,23 +738,28 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
   const query = {};
 
   query.status = "paid";
+  const allowedServices = [
+    "ConcussionEval",
+    "SportsVision",
+    "Post-ConcussionEvaluation",
+    "SportsVisionPerformanceEvaluation",
+    "SportsVisionEvaluation",
+    // "AddTrainingSessions",
+    "GlassesExam",
+    "ContactLensExam",
+  ];
 
   if (service_type) {
-    query.service_type = { $in: [service_type] };
+    query.service_type = {
+      $in: service_type.split(","),
+    };
   } else {
     query.service_type = {
-      $in: [
-        "ConcussionEval",
-        "SportsVision",
-        "Post-ConcussionEvaluation",
-        "SportsVisionPerformanceEvaluation",
-        "SportsVisionEvaluation",
-        // "AddTrainingSessions",
-        "GlassesExam",
-        "ContactLensExam",
-      ],
+      $in: allowedServices,
     };
   }
+
+  console.log("query", query);
   if (date) {
     const startDate = new Date(date);
     const endDate = new Date(date);
@@ -831,7 +839,7 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
         "MedicalOfficeVisit",
         "TrainingSession",
         "Medical/OfficeVisit",
-        "TrainingSessions"
+        "TrainingSessions",
       ],
     };
   }
@@ -1232,6 +1240,21 @@ exports.getAllDoc = catchAsyncError(async (req, res) => {
   });
 });
 
+exports.getAllServices = catchAsyncError(async (req, res, next) => {
+  const serviceType = await ServiceTypeModel.find();
+  const bookingType = await BookingServiceModel.find();
+
+  let services = {};
+
+  serviceType.forEach((service) => (services[service.alias] = service.name));
+
+  bookingType.forEach((booking) => (services[booking.alias] = booking.name));
+  res.status(200).json({
+    success: true,
+    services,
+  });
+});
+
 exports.getServiceTypes = catchAsyncError(async (req, res, next) => {
   const serviceType = await ServiceTypeModel.find();
   res.status(200).json({
@@ -1469,7 +1492,7 @@ exports.getEvaluation = catchAsyncError(async (req, res, next) => {
 });
 
 exports.completedReq = catchAsyncError(async (req, res) => {
-  const { service_status, payment_status, date } = req.query;
+  const { service_type, payment_status, date } = req.query;
 
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 10;
@@ -1481,20 +1504,26 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "SportsVisionEvaluation",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
-      "TrainingSessions",
+      // "TrainingSessions",
       "GlassesExam",
       "ContactLensExam",
     ],
   };
   query.status = "paid";
-  if (service_status) {
-    query.service_status = service_status;
+  if (service_type) {
+    query.service_type = service_type.split(",");
   }
   if (payment_status) {
     query.payment_status = payment_status;
   }
   if (date) {
-    query.date = date;
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
+    query.app_date = {
+      $gte: startDate.toISOString().split("T")[0],
+      $lt: endDate.toISOString().split("T")[0],
+    };
   }
   let appointments = [];
   if (searchQuery) {
@@ -1507,6 +1536,8 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       { "client.email": regex },
     ];
   }
+
+  console.log("query", query, service_type);
   const appointmentsArray = await appointmentModel
     .find(query)
     .sort({ createdAt: -1 })

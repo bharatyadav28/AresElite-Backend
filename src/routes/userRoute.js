@@ -45,6 +45,7 @@ const {
   updateProfilePic,
   createBookingService,
   getAthleteProfile,
+  getAllServices,
 } = require("../controllers/userController");
 const { upload } = require("../utils/aws");
 
@@ -80,6 +81,7 @@ router.get("/get-form", auth, getForm);
 router.get("/appointments/:date", auth, getAppointment);
 router.get("/get-all-doctors", auth, getAllDoc);
 router.get("/getServiceTypes", auth, getServiceTypes);
+router.get("/getAllServices", getAllServices);
 router.get("/get-all-appointments", auth, getAllAppointments);
 router.get("/get-offlineDrills", getOfflineDrills);
 
