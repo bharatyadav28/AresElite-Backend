@@ -670,7 +670,7 @@ exports.recentPrescriptions = catchAsyncError(async (req, res) => {
     },
   };
   if (service_type) {
-    query.service_type = { $in: [service_type] };
+    query.service_type = { $in: service_type.split(",") };
   }
   query.status = "paid";
 
@@ -720,10 +720,14 @@ exports.recentPrescriptions = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
   const totalRecords = await appointmentModel.countDocuments(query);
 
   res.json({
-    appointments: appointments,
+    appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
@@ -1567,9 +1571,12 @@ exports.completedReq = catchAsyncError(async (req, res) => {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
+  const totalRecords = await appointmentModel.countDocuments(query);
+
   res.status(200).json({
     success: true,
     appointments: result,
+    totalPages: Math.ceil(totalRecords / limit),
   });
 });
 
