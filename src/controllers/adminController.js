@@ -438,8 +438,9 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
   }
 
   const [day, month, year] = startDate.split("/");
+
   const formattedDate = new Date(
-    `${year}-${month < 10 && "0"}${month}-${day}T00:00:00.000Z`.toString()
+    `${year}-${month < 10 ? "0" : ""}${month}-${day}T00:00:00.000Z`.toString()
   );
   formattedDate.setUTCHours(0);
   formattedDate.setUTCMinutes(0);
@@ -458,12 +459,16 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
     );
   }
 
+  console.log("FD", formattedDate);
+
   const availablecheck = await slotModel.find({
     date: formattedDate,
     doctor,
   });
 
-  if (availablecheck.length > 0) {
+  console.log("AC", availablecheck);
+
+  if (availablecheck?.length > 0) {
     let sTimes = [];
     let eTimes = [];
     for (let slot of availablecheck) {
