@@ -12,6 +12,7 @@ const {
   calculateTimeDifference,
   sendData,
   filterBookedSlots,
+  timeDiff,
 } = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
@@ -405,6 +406,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       end_time,
       doctor_trainer,
       location,
+      service_status: { $ne: "cancelled" },
     };
     const app_id = generateAppointmentId();
     if (!client_id) {
@@ -535,6 +537,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     end_time,
     doctor_trainer,
     location,
+    service_status: { $ne: "cancelled" },
   };
   const app_id = generateAppointmentId();
   if (!client_id) {
@@ -1070,9 +1073,11 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       doctor_trainer: doctor,
       app_date: fdate,
     });
+    console.log(dayAppointments, date, fdate);
     const doc = await slotModel.find(query);
     let Calcslots = [];
     if (dayAppointments.length > 2) {
+      console.log("Data", data);
       const promises = dayAppointments.map((app, index) => {
         if (index === 0) {
           calculateTimeDifference(
@@ -1120,6 +1125,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       Calcslots = await Promise.all(promises);
     }
     if (dayAppointments.length === 2) {
+      console.log("Data2", data);
       const promises = dayAppointments.map((app, index) => {
         if (index === 0) {
           calculateTimeDifference(
@@ -1167,6 +1173,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       Calcslots = await Promise.all(promises);
     }
     if (dayAppointments.length === 1) {
+      console.log("Data3", data);
       const promises = dayAppointments.map((app, index) => {
         calculateTimeDifference(
           doc[0].startTime,
@@ -1200,12 +1207,25 @@ exports.getSlots = catchAsyncError(async (req, res) => {
         null,
         doc[0].endTime,
         service_type
-      ).then((data) => {
+      ).then(async (data) => {
+        console.log("Data4", data);
+
         data.map((slot) => Calcslots.push(slot));
-        slots = Calcslots.map((slot, index) => [
-          slot,
-          Calcslots[index + 1] == null ? doc[0].endTime : Calcslots[index + 1],
-        ]);
+
+        slots = await Promise.all(
+          Calcslots.map(async (slot, index) => {
+            let endInt = Calcslots[index + 1];
+            if (Calcslots[index + 1] == null) {
+              endInt = await timeDiff(
+                service_type,
+                Calcslots[index],
+                doc[0].endTime
+              );
+            }
+            return [slot, endInt];
+          })
+        );
+
         return res.status(200).json({ slots: slots });
       });
     }

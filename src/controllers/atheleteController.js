@@ -329,7 +329,9 @@ exports.getTransactions = catchAsyncError(async (req, res, next) => {
     query.phase = phase;
   }
 
-  const transactions = await transactionModel.find(query);
+  const transactions = await transactionModel
+    .find(query)
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -716,9 +718,13 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
   const totalRecords = appointments.length;
   res.json({
-    appointments: appointments,
+    appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
