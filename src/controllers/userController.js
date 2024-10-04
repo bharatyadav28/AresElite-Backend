@@ -364,6 +364,7 @@ exports.checkClient = catchAsyncError(async (req, res, next) => {
       last_name: user.lastName,
       email: user.email,
       phone: user.phone,
+      plan_payment: user.plan_payment,
     },
   });
 });
@@ -1950,6 +1951,75 @@ exports.deleteTrainingSessionModel = catchAsyncError(async (req, res, next) => {
       new ErrorHandler("Internal server error: " + error.message, 500)
     );
   }
+});
+
+exports.addTrainingSession = catchAsyncError(async (req, res, next) => {
+  console.log("dsssssssssss");
+  const { clientId, sessionId, mode, appointmentId } = req.query;
+
+  const { doctor_trainer, service_type } = req.body;
+
+  if (!clientId || !sessionId) {
+    c;
+    return res.status(400).json({
+      success: false,
+      message: "Client ID and Session ID are required",
+    });
+  }
+
+  const [client, TrainingSession] = await Promise.all([
+    userModel.findById(clientId),
+    TrainingSessionModel.findById(sessionId),
+  ]);
+
+  if (!TrainingSession) {
+    return res.status(404).json({
+      success: false,
+      message: "Training session not found",
+    });
+  }
+
+  const rmyes = await OfflineAtheleteDrillsModel.findOne({
+    client: new mongoose.Types.ObjectId(clientId),
+    // appointment: new mongoose.Types.ObjectId(appointmentId),
+    // numOfSessions: TrainingSession.sessions,
+  });
+
+  if (rmyes) {
+    rmyes.unPaidSessions = TrainingSession.sessions;
+    await rmyes.save();
+  }
+
+  const dater = new Date();
+  const fdate = dater.setUTCHours(0, 0, 0, 0);
+  const transaction = await transactionModel.create({
+    payment_status: "pending",
+    doctor: doctor_trainer,
+
+    plan: sessionId,
+    service_type,
+    date: fdate,
+    clientId,
+    amount: TrainingSession.cost,
+    mode: mode,
+  });
+  transaction.save();
+
+  const title = "Additional sessions";
+  const message = `Doctor has added ${TrainingSession.sessions} training Sessions. `;
+
+  const authUserId = req.userId;
+  const checkUser = await userModel.findById(authUserId);
+  const isSend = await createNotification(
+    title,
+    message,
+    clientId,
+    checkUser?.firstName
+  );
+
+  return res.status(200).json({
+    success: true,
+  });
 });
 
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {

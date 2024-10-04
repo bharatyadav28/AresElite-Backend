@@ -46,6 +46,7 @@ const {
   createBookingService,
   getAthleteProfile,
   getAllServices,
+  addTrainingSession,
 } = require("../controllers/userController");
 const { upload } = require("../utils/aws");
 
@@ -63,6 +64,7 @@ router.post("/submit-eval-form", auth, submitEvaluation);
 router.post("/submit-pres-form", auth, submitPrescription);
 router.post("/submit-diagnosis-form", auth, submitDiagnosis);
 router.post("/buy-training-session", auth, buyTrainingSession);
+router.post("/add-training-session", auth, addTrainingSession);
 
 router.get("/get-slots", auth, getSlots);
 router.get("/get-Drills", auth, getDrillDetails);
