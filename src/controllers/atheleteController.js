@@ -123,6 +123,26 @@ exports.login = catchAsyncError(async (req, res, next) => {
   res.status(201).json({ user, token });
 });
 
+
+exports.sendMe = catchAsyncError(async (req, res, next) => {
+  const userId = req.userId;
+  const user = await userModel
+    .findById(userId)
+    .select("-password");
+  if (user.role !== "athlete") {
+    return next(new ErrorHandler("Unauthorized! Access Denied ", 400));
+  }
+
+  if (!user) {
+    return next(new ErrorHandler("Invalid user", 401));
+  }
+
+const token  =req.headers.authorization.split(" ")[1]
+console.log("user", user)
+console.log("token", token)
+  res.status(201).json({ user, token });
+});
+
 exports.sendForgotPasswordCode = catchAsyncError(async (req, res, next) => {
   const { email } = req.body;
   const user = await userModel.findOne({ email });
@@ -329,7 +349,9 @@ exports.getTransactions = catchAsyncError(async (req, res, next) => {
     query.phase = phase;
   }
 
-  const transactions = await transactionModel.find(query);
+  const transactions = await transactionModel
+    .find(query)
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -716,9 +738,13 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
   const totalRecords = appointments.length;
   res.json({
-    appointments: appointments,
+    appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
@@ -797,7 +823,7 @@ exports.alreadyBookedAppointment = catchAsyncError(async (req, res, next) => {
   const appointments = await appointmentModel.find({
     client: uid,
     service_type: {
-      $in: ["OfflineVisit", "TeleSession", "AddTrainingSessions"],
+      $in: ["OfflineVisit", "TeleSession", "TrainingSessions"],
     },
     service_status: "upcoming",
   });

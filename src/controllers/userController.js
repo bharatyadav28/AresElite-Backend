@@ -12,6 +12,7 @@ const {
   calculateTimeDifference,
   sendData,
   filterBookedSlots,
+  timeDiff,
 } = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
@@ -363,6 +364,7 @@ exports.checkClient = catchAsyncError(async (req, res, next) => {
       last_name: user.lastName,
       email: user.email,
       phone: user.phone,
+      plan_payment: user.plan_payment,
     },
   });
 });
@@ -392,7 +394,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
   );
   // if (service_type === "TrainingSessions") {
   if (
-    service_type === "AddTrainingSessions" ||
+    service_type === "TrainingSessions" ||
     service_type === "OfflineVisit" ||
     service_type === "TeleSession"
   ) {
@@ -405,6 +407,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       end_time,
       doctor_trainer,
       location,
+      service_status: { $ne: "cancelled" },
     };
     const app_id = generateAppointmentId();
     if (!client_id) {
@@ -483,7 +486,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       status:
         service_type === "Consultation" ||
         service_type === "ConsultationCall" ||
-        service_type === "AddTrainingSessions" ||
+        service_type === "TrainingSessions" ||
         service_type === "OfflineVisit" ||
         service_type === "TeleSession"
           ? "paid"
@@ -535,6 +538,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     end_time,
     doctor_trainer,
     location,
+    service_status: { $ne: "cancelled" },
   };
   const app_id = generateAppointmentId();
   if (!client_id) {
@@ -639,8 +643,11 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     .find(query)
     .sort({ createdAt: "desc" })
     .skip((page - 1) * limit)
-    .limit(limit)
-    .exec();
+    .limit(limit);
+  // .populate("client", "profilePic");
+
+  console.log(appointments[0]);
+
   const totalRecords = await appointmentModel.countDocuments(query);
   res.json({
     appointments: appointments,
@@ -667,7 +674,7 @@ exports.recentPrescriptions = catchAsyncError(async (req, res) => {
     },
   };
   if (service_type) {
-    query.service_type = { $in: [service_type] };
+    query.service_type = { $in: service_type.split(",") };
   }
   query.status = "paid";
 
@@ -717,10 +724,14 @@ exports.recentPrescriptions = catchAsyncError(async (req, res) => {
     })
   );
 
+  const result = appointments.sort(
+    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
   const totalRecords = await appointmentModel.countDocuments(query);
 
   res.json({
-    appointments: appointments,
+    appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
@@ -735,23 +746,28 @@ exports.inQueueRequests = catchAsyncError(async (req, res) => {
   const query = {};
 
   query.status = "paid";
+  const allowedServices = [
+    "ConcussionEval",
+    "SportsVision",
+    "Post-ConcussionEvaluation",
+    "SportsVisionPerformanceEvaluation",
+    "SportsVisionEvaluation",
+    // "AddTrainingSessions",
+    "GlassesExam",
+    "ContactLensExam",
+  ];
 
   if (service_type) {
-    query.service_type = { $in: [service_type] };
+    query.service_type = {
+      $in: service_type.split(","),
+    };
   } else {
     query.service_type = {
-      $in: [
-        "ConcussionEval",
-        "SportsVision",
-        "Post-ConcussionEvaluation",
-        "SportsVisionPerformanceEvaluation",
-        "SportsVisionEvaluation",
-        // "AddTrainingSessions",
-        "GlassesExam",
-        "ContactLensExam",
-      ],
+      $in: allowedServices,
     };
   }
+
+  console.log("query", query);
   if (date) {
     const startDate = new Date(date);
     const endDate = new Date(date);
@@ -831,7 +847,7 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
         "MedicalOfficeVisit",
         "TrainingSession",
         "Medical/OfficeVisit",
-        "AddTrainingSessions",
+        "TrainingSessions",
       ],
     };
   }
@@ -955,8 +971,21 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       checkUser.role == "athlete"
         ? `You have selected ${plan} and phase ${planPhase}`
         : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`;
-    const isSend = await createNotification(title, message, user);
-    if (isSend);
+
+    console.log("Hi");
+    let doctor = "";
+    if (checkUser.role !== "athlete") {
+      const lastAppointment = await appointmentModel
+        .find({ client: userId })
+        .sort({ createdAt: -1 });
+
+      if (lastAppointment) {
+        doctor = lastAppointment[0].doctor_trainer;
+      }
+    }
+
+    const isSend = await createNotification(title, message, user, doctor);
+
     res.status(200).json({
       success: true,
       message: `Plan updated, plan is: ${user.plan}. Notified to user`,
@@ -1047,9 +1076,11 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       doctor_trainer: doctor,
       app_date: fdate,
     });
+    console.log(dayAppointments, date, fdate);
     const doc = await slotModel.find(query);
     let Calcslots = [];
     if (dayAppointments.length > 2) {
+      console.log("Data", data);
       const promises = dayAppointments.map((app, index) => {
         if (index === 0) {
           calculateTimeDifference(
@@ -1097,6 +1128,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       Calcslots = await Promise.all(promises);
     }
     if (dayAppointments.length === 2) {
+      console.log("Data2", data);
       const promises = dayAppointments.map((app, index) => {
         if (index === 0) {
           calculateTimeDifference(
@@ -1144,6 +1176,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
       Calcslots = await Promise.all(promises);
     }
     if (dayAppointments.length === 1) {
+      console.log("Data3", data);
       const promises = dayAppointments.map((app, index) => {
         calculateTimeDifference(
           doc[0].startTime,
@@ -1177,12 +1210,25 @@ exports.getSlots = catchAsyncError(async (req, res) => {
         null,
         doc[0].endTime,
         service_type
-      ).then((data) => {
+      ).then(async (data) => {
+        console.log("Data4", data);
+
         data.map((slot) => Calcslots.push(slot));
-        slots = Calcslots.map((slot, index) => [
-          slot,
-          Calcslots[index + 1] == null ? doc[0].endTime : Calcslots[index + 1],
-        ]);
+
+        slots = await Promise.all(
+          Calcslots.map(async (slot, index) => {
+            let endInt = Calcslots[index + 1];
+            if (Calcslots[index + 1] == null) {
+              endInt = await timeDiff(
+                service_type,
+                Calcslots[index],
+                doc[0].endTime
+              );
+            }
+            return [slot, endInt];
+          })
+        );
+
         return res.status(200).json({ slots: slots });
       });
     }
@@ -1218,6 +1264,21 @@ exports.getAllDoc = catchAsyncError(async (req, res) => {
     doctors: doctors,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
+  });
+});
+
+exports.getAllServices = catchAsyncError(async (req, res, next) => {
+  const serviceType = await ServiceTypeModel.find();
+  const bookingType = await BookingServiceModel.find();
+
+  let services = {};
+
+  serviceType.forEach((service) => (services[service.alias] = service.name));
+
+  bookingType.forEach((booking) => (services[booking.alias] = booking.name));
+  res.status(200).json({
+    success: true,
+    services,
   });
 });
 
@@ -1458,7 +1519,7 @@ exports.getEvaluation = catchAsyncError(async (req, res, next) => {
 });
 
 exports.completedReq = catchAsyncError(async (req, res) => {
-  const { service_status, payment_status, date } = req.query;
+  const { service_type, payment_status, date } = req.query;
 
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 10;
@@ -1470,20 +1531,26 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       "SportsVisionEvaluation",
       "Post-ConcussionEvaluation",
       "SportsVisionPerformanceEvaluation",
-      "AddTrainingSessions",
+      // "TrainingSessions",
       "GlassesExam",
       "ContactLensExam",
     ],
   };
   query.status = "paid";
-  if (service_status) {
-    query.service_status = service_status;
+  if (service_type) {
+    query.service_type = service_type.split(",");
   }
   if (payment_status) {
     query.payment_status = payment_status;
   }
   if (date) {
-    query.date = date;
+    const startDate = new Date(date);
+    const endDate = new Date(date);
+    endDate.setDate(endDate.getDate() + 1);
+    query.app_date = {
+      $gte: startDate.toISOString().split("T")[0],
+      $lt: endDate.toISOString().split("T")[0],
+    };
   }
   let appointments = [];
   if (searchQuery) {
@@ -1496,6 +1563,8 @@ exports.completedReq = catchAsyncError(async (req, res) => {
       { "client.email": regex },
     ];
   }
+
+  console.log("query", query, service_type);
   const appointmentsArray = await appointmentModel
     .find(query)
     .sort({ createdAt: -1 })
@@ -1525,9 +1594,12 @@ exports.completedReq = catchAsyncError(async (req, res) => {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
+  const totalRecords = await appointmentModel.countDocuments(query);
+
   res.status(200).json({
     success: true,
     appointments: result,
+    totalPages: Math.ceil(totalRecords / limit),
   });
 });
 
@@ -1883,6 +1955,75 @@ exports.deleteTrainingSessionModel = catchAsyncError(async (req, res, next) => {
   }
 });
 
+exports.addTrainingSession = catchAsyncError(async (req, res, next) => {
+  console.log("dsssssssssss");
+  const { clientId, sessionId, mode, appointmentId } = req.query;
+
+  const { doctor_trainer, service_type } = req.body;
+
+  if (!clientId || !sessionId) {
+    c;
+    return res.status(400).json({
+      success: false,
+      message: "Client ID and Session ID are required",
+    });
+  }
+
+  const [client, TrainingSession] = await Promise.all([
+    userModel.findById(clientId),
+    TrainingSessionModel.findById(sessionId),
+  ]);
+
+  if (!TrainingSession) {
+    return res.status(404).json({
+      success: false,
+      message: "Training session not found",
+    });
+  }
+
+  const rmyes = await OfflineAtheleteDrillsModel.findOne({
+    client: new mongoose.Types.ObjectId(clientId),
+    // appointment: new mongoose.Types.ObjectId(appointmentId),
+    // numOfSessions: TrainingSession.sessions,
+  });
+
+  if (rmyes) {
+    rmyes.unPaidSessions = TrainingSession.sessions;
+    await rmyes.save();
+  }
+
+  const dater = new Date();
+  const fdate = dater.setUTCHours(0, 0, 0, 0);
+  const transaction = await transactionModel.create({
+    payment_status: "pending",
+    doctor: doctor_trainer,
+
+    plan: sessionId,
+    service_type,
+    date: fdate,
+    clientId,
+    amount: TrainingSession.cost,
+    mode: mode,
+  });
+  transaction.save();
+
+  const title = "Additional sessions";
+  const message = `Doctor has added ${TrainingSession.sessions} training Sessions. `;
+
+  const authUserId = req.userId;
+  const checkUser = await userModel.findById(authUserId);
+  const isSend = await createNotification(
+    title,
+    message,
+    clientId,
+    checkUser?.firstName
+  );
+
+  return res.status(200).json({
+    success: true,
+  });
+});
+
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   const { clientId, sessionId, mode, appointmentId } = req.query;
 
@@ -1943,6 +2084,7 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
 
   client.plan = "offline";
   client.mode = "offline";
+  client.is_online = "false";
   client.plan_payment = "pending";
   await client.save();
 
@@ -1960,9 +2102,23 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
       : `A plan has been selected by doctor, your are in ${
           client.plan === "offline" ? "In-office" : client.plan
         } plan `;
-  const isSend = await createNotification(title, message, clientId);
 
-  res.status(200).json({
+  let doctor = "";
+  if (checkUser.role !== "athlete") {
+    const lastAppointment = await appointmentModel
+      .find({ client: clientId })
+      .sort({ createdAt: -1 });
+
+    if (lastAppointment && lastAppointment.length > 0) {
+      doctor = lastAppointment[0].doctor_trainer;
+    }
+  }
+
+  console.log("doctor", doctor);
+
+  const isSend = await createNotification(title, message, clientId, doctor);
+
+  return res.status(200).json({
     success: true,
     SessionForUser,
   });

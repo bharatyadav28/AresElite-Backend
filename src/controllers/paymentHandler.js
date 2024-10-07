@@ -10,6 +10,7 @@ const TransactionModel = require("../models/transactionModel");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
 const TeleSessionsModel = require("../models/TeleSessionsModel");
 const TrainingSessionModel = require("../models/trainingSessionModel");
+const { createNotification } = require("../utils/functions");
 
 exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
   const product = req.body.product;
@@ -165,6 +166,11 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
         console.log("Result: ", result);
       }
 
+      await createNotification(
+        "Incomplete Drill",
+        `Your week 1 day 1 drill is not complete, Click here to complete`,
+        userId
+      );
       res.status(200).json({
         success: true,
         message: "Updated",
@@ -211,8 +217,22 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
 
       if ((transaction.payment_status = "paid")) {
         const user = await UserModel.findById(userId);
-        user.plan_payment = "paid";
-        user.save();
+
+        if (user.plan_payment !== "paid") {
+          user.plan_payment = "paid";
+          await user.save();
+        } else {
+          const drillData = await OfflineAtheleteDrillsModel.findOne({
+            client: new mongoose.Types.ObjectId(userId),
+          });
+          if (drillData?.unPaidSessions > 0) {
+            const updatedSessions =
+              drillData.numOfSessions + drillData.unPaidSessions;
+            drillData.numOfSessions = updatedSessions;
+            drillData.unPaidSessions = 0;
+            await drillData.save();
+          }
+        }
       }
 
       res.status(200).json({

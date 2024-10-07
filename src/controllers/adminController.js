@@ -40,6 +40,7 @@ const CamelcaseString = require("../utils/CamelcaseString");
 const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 
 const mongoose = require("mongoose");
+const shipment = require("../models/shipment");
 
 const sendData = (user, statusCode, res) => {
   const token = user.getJWTToken();
@@ -402,7 +403,8 @@ function createDateWithTime(timeString) {
 }
 
 exports.addSlot = catchAsyncError(async (req, res, next) => {
-  let { startDate, endDate, doctor, address, startTime, endTime } = req.body;
+  let { startDate, endDate, doctor, address, startTime, endTime, clinic } =
+    req.body;
   console.log(req.body);
   let cdate = startDate.split("/")[0].length;
 
@@ -436,8 +438,9 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
   }
 
   const [day, month, year] = startDate.split("/");
+
   const formattedDate = new Date(
-    `${year}-${month < 10 && "0"}${month}-${day}T00:00:00.000Z`.toString()
+    `${year}-${month < 10 ? "0" : ""}${month}-${day}T00:00:00.000Z`.toString()
   );
   formattedDate.setUTCHours(0);
   formattedDate.setUTCMinutes(0);
@@ -456,12 +459,16 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
     );
   }
 
+  console.log("FD", formattedDate);
+
   const availablecheck = await slotModel.find({
     date: formattedDate,
     doctor,
   });
 
-  if (availablecheck.length > 0) {
+  console.log("AC", availablecheck);
+
+  if (availablecheck?.length > 0) {
     let sTimes = [];
     let eTimes = [];
     for (let slot of availablecheck) {
@@ -492,6 +499,7 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
     slot = await slotModel.create({
       date: formattedDate,
       doctor,
+      clinic,
       address,
       startTime,
       endTime,
@@ -512,6 +520,7 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
       slot = await slotModel.create({
         date,
         doctor,
+        clinic,
         address,
         startTime,
         endTime,
@@ -543,14 +552,16 @@ exports.getAllSlots = catchAsyncError(async (req, res) => {
     filter.date = { $gte: formattedDate, $lt: endDate };
   }
 
-  const slots = await slotModel.find(filter).sort("desc");
+  const slots = await slotModel.find(filter).sort("desc").populate("clinic");
   const doctorNames = slots.map((slot) => slot.doctor);
-  // console.log(doctorNames)
+  // console.log(doctorNames);
   // Find users where firstname matches any doctor name
-  const doctors = await userModel.findOne({
+  const doctors = await userModel.find({
     firstName: { $in: doctorNames },
+    role: "doctor",
   });
   // console.log(doctors)
+
   res.status(200).json({
     data: slots,
     doctors,
@@ -618,6 +629,7 @@ exports.updateSlot = catchAsyncError(async (req, res, next) => {
     {
       date: formattedDate,
       doctor: formdata.doctor,
+      clinic: formdata.clinic,
       address: formdata.address,
       startTime: formdata.startTime,
       endTime: formdata.endTime,
@@ -884,6 +896,59 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
     users,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
+  });
+});
+
+exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
+  const page = parseInt(req.query.page_no) || 1;
+  const limit = parseInt(req.query.per_page_count) || 8;
+  const searchQuery = req.query.searchQuery;
+  const filter = req.query.filter;
+
+  let query = { role: ["athlete"], is_online: true };
+  if (searchQuery) {
+    const regex = new RegExp(`^${searchQuery}`, "i");
+    query.$or = [
+      { firstName: regex },
+      { lastName: regex },
+      { first_name: regex },
+      { last_name: regex },
+      { email: regex },
+      { role: regex },
+    ];
+  }
+  let users = await userModel.find(query).sort({ $natural: -1 }).lean();
+  // .skip((page - 1) * limit)
+  // .limit(limit)
+  // .exec();
+
+  const shipments = await ShipmentModel.find();
+
+  users.forEach((user) => {
+    const found = shipments.find(
+      (item) =>
+        String(item.ClientId) === String(user._id) &&
+        item.shipmentStatus.length === 5
+    );
+
+    user["is_completed"] = found ? true : false;
+  });
+
+  if (filter) {
+    users = users.filter(
+      (user) => user.is_completed === (filter === "true" ? true : false)
+    );
+  }
+  const totalUsers = users.length;
+
+  // console.log("users: ", updatedUsers);
+  users = users.slice((page - 1) * limit, (page - 1) * limit + limit);
+
+  res.json({
+    users,
+    totalPages: Math.ceil(totalUsers / limit),
+    currentPage: page,
+    shipments,
   });
 });
 
@@ -1428,7 +1493,57 @@ exports.getShipments = catchAsyncError(async (req, res, next) => {
 exports.updateShipment = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
   const formdata = req.body.data;
-  const shipment = await ShipmentModel.findByIdAndUpdate(id, formdata);
+
+  const seriesEvents = [
+    "order placed",
+    "order dispatched",
+    "shipped",
+    "out for delivery",
+    "delivered",
+  ];
+  const incomingStatus = formdata?.shipmentStatus?.map((item) => item.status);
+  const updatedStatus = [];
+  let i = 0,
+    j = 0;
+  let forward = true;
+
+  while (i <= 5 && forward) {
+    if (incomingStatus[i] === seriesEvents[j]) {
+      updatedStatus.push(formdata?.shipmentStatus[i]);
+      if (
+        i === incomingStatus.length - 1 &&
+        seriesEvents[j] === incomingStatus[i]
+      ) {
+        forward = false;
+      }
+      i++, j++;
+    } else {
+      updatedStatus.push({
+        status: seriesEvents[j],
+        startDate:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1]
+            .startDate,
+        endDate:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1].endDate,
+        trackingId:
+          formdata?.shipmentStatus[formdata?.shipmentStatus.length - 1]
+            .trackingId,
+      });
+
+      if (
+        i === incomingStatus.length - 1 &&
+        seriesEvents[j] === incomingStatus[i]
+      ) {
+        forward = false;
+      }
+      j++;
+    }
+  }
+
+  const updatedFormData = { ...formdata, shipmentStatus: updatedStatus };
+  console.log("updatedStatus", updatedFormData);
+
+  const shipment = await ShipmentModel.findByIdAndUpdate(id, updatedFormData);
   if (!shipment) {
     return next(new ErrorHandler("Shipment not found or updated", 400));
   } else {

@@ -17,7 +17,6 @@ const serviceDurations = {
 };
 
 const timeForService = async (alias) => {
-  console.log("Alias: ", alias);
   const timeCache = new Map();
   if (timeCache.has(alias)) {
     return timeCache.get(alias);
@@ -83,14 +82,45 @@ const sendData = (user, statusCode, res) => {
   });
 };
 
+const timeDiff = async (service_type, time1, time2) => {
+  const serviceTime = await timeForService(service_type);
+  const [hours1, minutes1] = convertTo24HourFormat(time1)
+    .split(":")
+    .map(Number);
+
+  const [hours2, minutes2] = convertTo24HourFormat(time2)
+    .split(":")
+    .map(Number);
+
+  const totalMinutes1 = hours1 * 60 + minutes1;
+  const totalMinutes2 = hours2 * 60 + minutes2;
+  const differenceInMinutes = totalMinutes2 - totalMinutes1;
+
+  if (differenceInMinutes > serviceTime) {
+    const currentMinutes = totalMinutes1 + serviceTime;
+    const hours = Math.floor(currentMinutes / 60) % 24;
+    const minutes = currentMinutes % 60;
+    const ampm = hours >= 12 ? "PM" : "AM";
+    const formattedHours = hours % 12 || 12; // Convert 0 to 12
+    const timeString = `${formattedHours.toString().padStart(2, "0")}:${minutes
+      .toString()
+      .padStart(2, "0")} ${ampm}`;
+
+    return timeString;
+  }
+
+  return time2;
+};
+
 const calculateTimeDifference = async (time1, serviceType, time2, duration) => {
-  console.log("Service Type", serviceType);
+  // console.log("Service Type", serviceType);
   const [hours1, minutes1] = addDuration(
     convertTo24HourFormat(time1),
     await timeForService(serviceType)
   )
     .split(":")
     .map(Number);
+
   const [hours2, minutes2] = convertTo24HourFormat(time2)
     .split(":")
     .map(Number);
@@ -100,7 +130,7 @@ const calculateTimeDifference = async (time1, serviceType, time2, duration) => {
 
   const differenceInMinutes = Math.abs(totalMinutes2 - totalMinutes1);
 
-  const piecesCount = Math.ceil(
+  const piecesCount = Math.floor(
     differenceInMinutes / (await timeForService(duration))
   );
 
@@ -117,6 +147,8 @@ const calculateTimeDifference = async (time1, serviceType, time2, duration) => {
       .padStart(2, "0")} ${ampm}`;
     timeDiffInPieces.push(timeString);
   }
+
+  console.log("sdsd", timeDiffInPieces);
 
   return timeDiffInPieces;
 };
@@ -156,12 +188,14 @@ const createArrayOfPairs = (arr) => {
   return pairsArray;
 };
 
-const createNotification = (async (title, text, user) => {
+const createNotification = async (title, text, user, doctor) => {
+  console.log("d", doctor);
   try {
     const notification = await notificationModel.create({
       title,
       text,
       user: new mongoose.Types.ObjectId(user),
+      doctor,
     });
 
     // If notification is created successfully, log it and return true
@@ -172,7 +206,7 @@ const createNotification = (async (title, text, user) => {
     console.error("Error creating notification:", e);
     return false;
   }
-});
+};
 
 
 function hasTimePassed(dateStr, timeStr) {
@@ -214,4 +248,5 @@ module.exports = {
   timeValidate,
   createNotification,
   hasTimePassed,
+  timeDiff,
 };

@@ -18,6 +18,9 @@ const notificationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    doctor: {
+      type: String,
+    },
   },
   { timestamps: true }
 );

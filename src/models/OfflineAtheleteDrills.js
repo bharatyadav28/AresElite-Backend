@@ -55,6 +55,10 @@ const OfflineAtheleteDrillsSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    unPaidSessions: {
+      type: Number,
+      default: 0,
+    },
   },
   { timestamps: true }
 );
