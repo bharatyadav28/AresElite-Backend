@@ -1,5 +1,7 @@
 const userModel = require("../models/userModel");
 const appointmentModel = require("../models/appointmentModel");
+const Stripe = require("stripe");
+const stripe = Stripe(process.env.SECRET);
 const slotModel = require("../models/slotModel");
 const catchAsyncError = require("../utils/catchAsyncError");
 const mongoose = require("mongoose");
@@ -485,10 +487,10 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "TrainingSessions" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
@@ -512,9 +514,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -572,8 +574,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-      service_type === "ConsultationCall" ||
-      service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -889,41 +891,94 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
 });
 
 exports.selectPlan = catchAsyncError(async (req, res, next) => {
-  const userId = req.query.userId;
-  const plan = req.query.plan;
-  const planPhase = req.query.planPhase;
-  const mode = req.query.mode;
-  const userID = req.userId; //id from token
-  if (!userId || !plan || !planPhase) {
-    return next(new ErrorHandler("Please provide a user id", 400));
+  const { plan, planPhase, mode } = req.query;
+  const userID = req.userId; // ID from token
+
+  console.log(plan, planPhase, mode);
+  // Ensure all required fields are provided
+  if (!plan || !planPhase) {
+    return next(new ErrorHandler("Please provide a plan and phase.", 400));
   }
-  const user = await userModel.findById(userId);
-  if (user.role !== "athlete") {
+
+  // Fetch user data
+  const user = await userModel.findById(userID);
+  if (!user || user.role !== "athlete") {
     return next(new ErrorHandler("Unauthorized! Access denied", 400));
   }
 
+  const currentPlan = user.plan;
+  const currentPhase = user.phase;
+  const isFirstPhase = planPhase === "Phase 1";
+
+  // 1. If the user is new, they must start with Novice Basic
+  if (!currentPlan && plan !== "Novice") {
+    return next(new ErrorHandler("New users must start with the Novice Basic plan.", 400));
+  }
+
+  // 2. If the user is on Novice Basic, they can only select Phase 1 of other plans
+  if (currentPlan === "Novice" && !isFirstPhase) {
+    return next(new ErrorHandler("You must start with Phase 1 when transitioning from Novice Basic.", 400));
+  }
+
+  // 3. Ensure users can only progress sequentially within the same plan
+  if (currentPlan === plan && currentPhase !== planPhase) {
+    const validProgression = await validateProgression(currentPlan, currentPhase, plan, planPhase);
+    if (!validProgression) {
+      return next(new ErrorHandler("Invalid progression. Complete the current phase before progressing.", 400));
+    }
+  }
+
+  // Create or update DrillForm for the user if not already existing
   const DrillFormUser = await DrillForm.find({
-    $or: [
-      { clientId: userId },
-      { clientId: new mongoose.Types.ObjectId(userId) },
-    ],
+    $or: [{ clientId: userID }, { clientId: new mongoose.Types.ObjectId(userID) }],
   });
+
+  let allActivitiesComplete = true;
+
+  DrillFormUser.forEach(drill => {
+    console.log("drillss", drill)
+    drill.drill.forEach(activity => {
+      activity.activities.forEach(comp => {
+        if (!comp.isComplete) {
+          allActivitiesComplete = false; // If any activity is not complete
+        }
+      })
+    });
+  });
+
+  if (!allActivitiesComplete) {
+    return next(new ErrorHandler("All activities must be completed before upgrading your plan", 500))
+  }
+
+  // If user has a Stripe subscription, cancel it
+  if (user.stripeSubscriptionId) {
+    try {
+      const canceledSubscription = await stripe.subscriptions.cancel(user.stripeSubscriptionId);
+      console.log(`Canceled Stripe subscription for user ${userID}:`, canceledSubscription);
+    } catch (error) {
+      console.error('Error canceling Stripe subscription:', error);
+      return next(new ErrorHandler('Failed to cancel existing Stripe subscription', 500));
+    }
+  }
+
   if (DrillFormUser.length === 0) {
     const form = await DrillFormModel.find({
       plan: { $regex: new RegExp(plan, "i") },
       phase: { $regex: new RegExp(planPhase, "i") },
     }).select("-_id -__v");
+
     if (form.length !== 0) {
       const drillForm = await DrillForm.create({
-        clientId: userId,
+        clientId: userID,
         drill: form,
       });
       drillForm.save();
     }
   }
 
+  // Update appointment with plan and phase
   const appointment = await appointmentModel.updateMany(
-    { "client._id": new mongoose.Types.ObjectId(userId) },
+    { "client._id": new mongoose.Types.ObjectId(userID) },
     {
       $set: {
         "client.plan": plan,
@@ -932,68 +987,76 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       },
     }
   );
-  const dater = new Date();
-  const fdate = dater.setUTCHours(0, 0, 0, 0);
-  const planCost = await planModel.findOne({
-    name: plan,
-  });
-  const basicPhase = planCost.phases.find((phase) => phase.name === planPhase);
+
+  // Get the plan's cost and update the transaction
+  const selectedPlan = await planModel.findOne({ name: plan });
+  const selectedPhase = selectedPlan.phases.find((phase) => phase.name === planPhase);
+  const transactionDate = new Date().setUTCHours(0, 0, 0, 0);
+
   const transaction = await transactionModel.create({
-    plan: plan,
+    plan,
     phase: planPhase,
-    date: fdate,
+    date: transactionDate,
     payment_status: "pending",
     service_type: "planPurchase",
-    clientId: userId,
-    amount: basicPhase.cost,
-    mode: mode,
+    clientId: userID,
+    amount: selectedPhase.cost,
+    mode,
   });
-  transaction.save();
-  if (!user) {
-    return next(new ErrorHandler("user does not exist", 400));
-  }
 
+  transaction.save();
+
+  // Update user with the new plan, phase, and payment status
   user.plan = plan;
   user.phase = planPhase;
-  user.mode = mode;
   user.plan_payment = "pending";
+  user.mode = mode;
   await user.save();
-  let title;
-  let message;
-  try {
-    const checkUser = await userModel.findById(userID);
 
-    title =
-      checkUser.role === "athlete"
-        ? "Plan selected successfully!"
-        : "Doctor has selected your plan";
-    message =
-      checkUser.role == "athlete"
-        ? `You have selected ${plan} and phase ${planPhase}`
-        : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`;
+  // Notify user
+  const title = "Plan selected successfully!";
+  const message = `You have selected ${plan} and phase ${planPhase}`;
+  const isSend = await createNotification(title, message, user);
 
-    console.log("Hi");
-    let doctor = "";
-    if (checkUser.role !== "athlete") {
-      const lastAppointment = await appointmentModel
-        .find({ client: userId })
-        .sort({ createdAt: -1 });
-
-      if (lastAppointment) {
-        doctor = lastAppointment[0].doctor_trainer;
-      }
-    }
-
-    const isSend = await createNotification(title, message, user, doctor);
-
+  console.log("isSend:", isSend)
+  if (isSend) {
     res.status(200).json({
       success: true,
-      message: `Plan updated, plan is: ${user.plan}. Notified to user`,
+      message: `Plan updated. Current plan: ${user.plan}. Notified the user.`,
       user,
       appointment,
     });
-  } catch (e) {}
+  }
 });
+const validateProgression = async (currentPlan, currentPhase, newPlan, newPhase) => {
+  if (!currentPlan || !currentPhase) {
+    // If no current plan or phase, allow starting a new plan
+    return newPhase === "Phase I";
+  }
+
+  // Define progression rules
+  const validProgressions = {
+    "Novice": ["Intermediate Phase I", "Advanced Phase I"], // Novice can only progress to Phase I of Intermediate or Advanced
+    "Intermediate": ["Advanced Phase I", "Elite Phase I"],
+    "Advanced": ["Elite Phase I"],
+    "Elite": [],
+  };
+
+  // If user is in Novice Basic phase, they can progress to Intermediate or Advanced Phase I
+  if (currentPlan === "Novice" && currentPhase === "Basic") {
+    return ["Intermediate Phase I", "Advanced Phase I"].includes(`${newPlan} ${newPhase}`);
+  }
+
+  // Only allow moving from Phase I to Phase II within the same plan
+  const nextPhaseAllowed = currentPhase === "Phase I" && newPhase === "Phase II";
+
+  // Allow moving to higher-level programs only from Phase I of the next level
+  if (validProgressions[currentPlan]?.includes(`${newPlan} ${newPhase}`) && newPhase === "Phase I") {
+    return true;
+  }
+
+  return nextPhaseAllowed;
+};
 
 const normalize = (str) => str.replace(/\s+/g, "").toLowerCase();
 exports.getForm = catchAsyncError(async (req, res) => {
@@ -1815,8 +1878,7 @@ exports.drillUpdate = catchAsyncError(async (req, res, next) => {
       if (nextDayNotify) {
         await createNotification(
           "Incomplete Drill",
-          `Your week ${r.drill[currentDayIndex + 1].week} day ${
-            r.drill[currentDayIndex + 1].day
+          `Your week ${r.drill[currentDayIndex + 1].week} day ${r.drill[currentDayIndex + 1].day
           } drill is not complete, Click here to complete`,
           userId
         );
@@ -2096,12 +2158,10 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
       : "Doctor has selected your plan";
   const message =
     checkUser.role == "athlete"
-      ? `You have selected ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan`
-      : `A plan has been selected by doctor, your are in ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan `;
+      ? `You have selected ${client.plan === "offline" ? "In-office" : client.plan
+      } plan`
+      : `A plan has been selected by doctor, your are in ${client.plan === "offline" ? "In-office" : client.plan
+      } plan `;
 
   let doctor = "";
   if (checkUser.role !== "athlete") {
@@ -2355,8 +2415,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
   if (result.sessions.length < result.numOfSessions) {
     await createNotification(
       "Upcoming Drill",
-      `Your Session ${
-        Number(newSession.session.split(" ")[1]) + 1
+      `Your Session ${Number(newSession.session.split(" ")[1]) + 1
       } is pending. Book it now`,
       appointment.client
     );

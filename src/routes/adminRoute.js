@@ -66,6 +66,8 @@ const {
   deleteColumn,
   getColumns,
   getAllShipmentUsers,
+  addPlan,
+  getSinglePlan,
 } = require("../controllers/adminController");
 
 const {
@@ -134,7 +136,10 @@ router
 router
   .route("/plans")
   .put(auth, isAdmin, updatePlan)
-  .get(auth, isAdmin, getPlan);
+  .get(auth, isAdmin, getPlan)
+  .post(auth, addPlan)
+
+router.get("/plan/:id", getSinglePlan)
 
 router
   .route("/drill")

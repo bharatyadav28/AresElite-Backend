@@ -31,6 +31,9 @@ const ClinicStatusModel = require("../models/clinicStatusModel");
 const ShipmentModel = require("../models/shipment");
 const TermsAndConditionsModel = require("../models/termsAndConditions");
 const PrivacyPolicyModel = require("../models/privacyPolicy");
+const planModel = require("../models/planModel");
+const { default: Stripe } = require("stripe");
+const stripe = Stripe(process.env.SECRET);
 const {
   DynamicDrill,
   DynamicDrillColumns,
@@ -288,18 +291,18 @@ exports.evaluationFormMake = catchAsyncError(async (req, res, next) => {
     EvaluationModel.schema.add(
       values
         ? {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-              enum: values,
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+            enum: values,
+          },
+        }
         : {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+          },
+        }
     );
     res.status(200).json({
       success: true,
@@ -331,18 +334,18 @@ exports.prescriptionFormMake = catchAsyncError(async (req, res, next) => {
     PrescriptionModel.schema.add(
       values
         ? {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-              enum: values,
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+            enum: values,
+          },
+        }
         : {
-            [toCamelCase(fieldName)]: {
-              type: String,
-              required: [true, "Required"],
-            },
-          }
+          [toCamelCase(fieldName)]: {
+            type: String,
+            required: [true, "Required"],
+          },
+        }
     );
     res.status(200).json({
       success: true,
@@ -440,7 +443,7 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
   const [day, month, year] = startDate.split("/");
 
   const formattedDate = new Date(
-    `${year}-${month < 10 ? "0" : ""}${month}-${day}T00:00:00.000Z`.toString()
+    `${year}-${month.length === 1 ? '0' + month : month}-${day.length === 1 ? '0' + day : day}T00:00:00.000Z`
   );
   formattedDate.setUTCHours(0);
   formattedDate.setUTCMinutes(0);
@@ -766,28 +769,59 @@ exports.editDoc = catchAsyncError(async (req, res, next) => {
   sendData(user, 200, res);
 });
 
-exports.addplan = catchAsyncError(async (req, res, next) => {
-  const { name, phases } = req.body;
+exports.addPlan = catchAsyncError(async (req, res, next) => {
+  const {
+    name,
+    oneTimeCharge,
+    phases,
+    features,
+    recurring,
+    validity,
+  } = req.body;
 
-  if (!name || !phases) {
-    return next(new ErrorHandler("All fields are required !", 400));
-  }
-  let plan = await PlanModel.find({ name: name });
-  if (plan > 0) {
-    return next(new ErrorHandler("Plan already created !", 400));
+  // Validate required fields
+  if (!name || (!oneTimeCharge && (!phases || phases.length === 0)) || !features || !validity) {
+    return next(new ErrorHandler("All required fields must be filled!", 400));
   }
 
+  // Check if the plan already exists
+  let plan = await PlanModel.findOne({ name });
+  if (plan) {
+    return next(new ErrorHandler("Plan with this name already exists!", 400));
+  }
+
+  // Prepare the phases to store in the database
+  const updatedPhases = phases.map(phase => ({
+    name: phase.name,
+    duration: phase.duration,
+    cost: phase.cost,
+  }));
+
+  // Create and store the plan in the database
   plan = await PlanModel.create({
     name,
-    phases,
+    oneTimeCharge: !!oneTimeCharge, // True if it's a one-time charge plan
+    phases: updatedPhases, // Store phases (without Stripe integration)
+    features,
+    recurring: !oneTimeCharge, // Set recurring to true if not a one-time charge
+    validity,
   });
-  plan.save();
+
+  // Respond with success and plan data
   res.status(200).json({
     success: true,
-    message: `Plan added successfully.`,
+    message: "Plan added successfully.",
     plan,
   });
 });
+
+exports.getSinglePlan = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params
+
+  const plan = await PlanModel.findById(id)
+
+  res.status(200).json({ success: true, plan })
+})
 
 exports.addService = catchAsyncError(async (req, res, next) => {
   const { name, cost, duration } = req.body;
