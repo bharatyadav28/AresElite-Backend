@@ -156,21 +156,24 @@ const createArrayOfPairs = (arr) => {
   return pairsArray;
 };
 
-const createNotification = catchAsyncError(async (title, text, user) => {
+const createNotification = (async (title, text, user) => {
   try {
     const notification = await notificationModel.create({
       title,
       text,
       user: new mongoose.Types.ObjectId(user),
     });
-    // notification.save();
-    console.log("notification", notification);
+
+    // If notification is created successfully, log it and return true
+    console.log("Notification created:", notification);
     return true;
   } catch (e) {
-    console.log(e);
+    // Log the error and return false
+    console.error("Error creating notification:", e);
     return false;
   }
 });
+
 
 function hasTimePassed(dateStr, timeStr) {
   // Parse the date part using ISO format

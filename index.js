@@ -43,7 +43,7 @@ app.get("/", (req, res) =>
 );
 
 try {
-  const server = app.listen(5000, () => {
+  const server = app.listen(process.env.PORT, () => {
     const port = server.address().port;
     console.log("App is listening on ", port);
   });

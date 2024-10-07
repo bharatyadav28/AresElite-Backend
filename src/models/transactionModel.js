@@ -44,6 +44,10 @@ const transactionSchema = new Schema(
     plan: {
       type: String,
     },
+    subscriptionId: {
+      type: String,
+      required: false
+    }
   },
   { timestamps: true }
 );
