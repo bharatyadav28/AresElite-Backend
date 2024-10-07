@@ -17,6 +17,7 @@ const {
   getPrescription,
   alreadyBookedAppointment,
   updateProfilePic,
+  sendMe,
 } = require("../controllers/atheleteController");
 const { auth } = require("../middlewares/auth");
 const { upload } = require("../utils/aws");
@@ -27,6 +28,8 @@ router.post("/send-forgot-password-code", sendForgotPasswordCode);
 router.post("/validate-code", validateForgotPasswordCode);
 router.post("/register", register);
 router.post("/login", login);
+
+router.get("/send-me", auth, sendMe);
 
 router.get("/get-profile", auth, getProfile);
 router.route("/transaction").get(auth, getTransactions);

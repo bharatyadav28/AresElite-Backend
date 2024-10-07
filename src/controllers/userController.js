@@ -972,18 +972,20 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
         ? `You have selected ${plan} and phase ${planPhase}`
         : `A plan has been selected by doctor, your are in ${plan} and phase ${planPhase}`;
 
+    console.log("Hi");
     let doctor = "";
     if (checkUser.role !== "athlete") {
-      const lastAppointment = appointmentModel
-        .find({ client: user })
+      const lastAppointment = await appointmentModel
+        .find({ client: userId })
         .sort({ createdAt: -1 });
+
       if (lastAppointment) {
         doctor = lastAppointment[0].doctor_trainer;
       }
     }
 
     const isSend = await createNotification(title, message, user, doctor);
-    if (isSend);
+
     res.status(200).json({
       success: true,
       message: `Plan updated, plan is: ${user.plan}. Notified to user`,
