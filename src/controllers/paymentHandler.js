@@ -10,7 +10,7 @@ const TransactionModel = require("../models/transactionModel");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
 const TeleSessionsModel = require("../models/TeleSessionsModel");
 const transactionModel = require("../models/transactionModel");
-const moment = require('moment'); // To handle date calculations
+const moment = require("moment"); // To handle date calculations
 const ErrorHandler = require("../utils/errorHandler");
 
 exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
@@ -28,7 +28,9 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
     // Retrieve the user from the database
     const user = await UserModel.findById(id);
     if (!user) {
-      return res.status(400).json({ success: false, message: 'User not found' });
+      return res
+        .status(400)
+        .json({ success: false, message: "User not found" });
     }
 
     let customer;
@@ -42,12 +44,12 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
           postal_code: user.zip,
           city: user.city,
           state: user.state,
-          country: 'India' || 'Canada',
+          country: "India" || "Canada",
         },
-        payment_method: 'pm_card_visa',
+        payment_method: "pm_card_visa",
         invoice_settings: {
-          default_payment_method: 'pm_card_visa' // Set the default payment method
-        }
+          default_payment_method: "pm_card_visa", // Set the default payment method
+        },
       });
       user.stripeCustomerId = customer.id;
       await user.save();
@@ -57,42 +59,51 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
 
     let paymentIntent;
 
-    if (type === 'planPurchase') {
+    if (type === "planPurchase") {
       const plan = await PlanModel.findOne({ name: user.plan });
       if (!plan) {
-        return res.status(400).json({ success: false, message: 'Plan not found' });
+        return res
+          .status(400)
+          .json({ success: false, message: "Plan not found" });
       }
 
-      const phase = plan.phases.find(p => p.name === phaseName);
+      const phase = plan.phases.find((p) => p.name === phaseName);
       if (!phase) {
-        return res.status(400).json({ success: false, message: 'Phase not found' });
+        return res
+          .status(400)
+          .json({ success: false, message: "Phase not found" });
       }
 
-      console.log('Phase:', phase); // Log the phase details
+      console.log("Phase:", phase); // Log the phase details
 
       const upfrontAmount = phase.cost; // Assuming this is for the initial upfront charge (e.g., for 3 or 6 months)
 
       // Step 1: Create an upfront payment intent to charge the user for the initial duration
-      console.log('Creating upfront payment intent for initial charge...');
+      console.log("Creating upfront payment intent for initial charge...");
       try {
         paymentIntent = await stripe.paymentIntents.create({
           amount: upfrontAmount * 100, // Convert to the smallest currency unit
-          currency: 'inr',             // Adjust currency as needed
+          currency: "inr", // Adjust currency as needed
           customer: customer.id,
-          payment_method: 'pm_card_visa', // Replace with a valid payment method ID
+          payment_method: "pm_card_visa", // Replace with a valid payment method ID
           off_session: true,
           confirm: true,
           description: `Upfront charge for ${phase.duration} months`,
         });
 
-        console.log('Upfront payment intent created:', paymentIntent);
+        console.log("Upfront payment intent created:", paymentIntent);
       } catch (error) {
-        console.error('Error creating upfront payment intent:', error);
-        return res.status(500).json({ success: false, message: 'Error creating upfront payment intent' });
+        console.error("Error creating upfront payment intent:", error);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Error creating upfront payment intent",
+          });
       }
 
       // Step 2: Create the recurring subscription starting after the initial duration
-      console.log('Proceeding to create the recurring subscription...');
+      console.log("Proceeding to create the recurring subscription...");
       try {
         // Create a product for the subscription
         const product = await stripe.products.create({
@@ -103,13 +114,14 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         // Create a recurring price
         const price = await stripe.prices.create({
           unit_amount: phase.cost * 100, // Monthly cost
-          currency: 'inr',
-          recurring: { interval: 'month' },
+          currency: "inr",
+          recurring: { interval: "month" },
           product: product.id,
         });
 
         // Calculate trial end date (3 or 6 months from now)
-        const trialEndDate = Math.floor(Date.now() / 1000) + (phase.duration * 30 * 24 * 60 * 60); // Current time + duration in seconds
+        const trialEndDate =
+          Math.floor(Date.now() / 1000) + phase.duration * 30 * 24 * 60 * 60; // Current time + duration in seconds
 
         // Create the subscription with trial end set
         const subscription = await stripe.subscriptions.create({
@@ -121,30 +133,36 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
           ],
           billing_cycle_anchor: Math.floor(Date.now() / 1000), // Start billing immediately
           trial_end: trialEndDate, // Delay the first billing until the trial ends
-          proration_behavior: 'none',
-          expand: ['latest_invoice.payment_intent'],
+          proration_behavior: "none",
+          expand: ["latest_invoice.payment_intent"],
         });
 
-        let subscriptionId = subscription ? subscription.id : null
+        let subscriptionId = subscription ? subscription.id : null;
 
         transaction.subscriptionId = subscriptionId;
-        user.stripeSubscriptionId = subscriptionId
+        user.stripeSubscriptionId = subscriptionId;
         await transaction.save();
-        await user.save()
-        console.log('Subscription created with trial end:', subscription);
+        await user.save();
+        console.log("Subscription created with trial end:", subscription);
 
         // Return a success response
         return res.status(200).json({
           success: true,
-          message: 'Upfront payment made, subscription created successfully with delayed billing.',
+          message:
+            "Upfront payment made, subscription created successfully with delayed billing.",
           subscriptionId: subscription.id,
           clientSecret: paymentIntent.client_secret,
         });
       } catch (error) {
-        console.error('Error creating recurring subscription:', error);
-        return res.status(500).json({ success: false, message: 'Error creating recurring subscription' });
+        console.error("Error creating recurring subscription:", error);
+        return res
+          .status(500)
+          .json({
+            success: false,
+            message: "Error creating recurring subscription",
+          });
       }
-    } else if (type === 'trainingSession') {
+    } else if (type === "trainingSession") {
       const costForService = async (tId) => {
         let cost;
         if (typeof cost === "undefined") {
@@ -172,15 +190,14 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       // Handle training session payment
       paymentIntent = await stripe.paymentIntents.create({
         amount: cost * 100, // Use the calculated cost
-        currency: 'inr',
+        currency: "inr",
         customer: customer.id,
-        payment_method: 'pm_card_visa',
+        payment_method: "pm_card_visa",
         off_session: true,
         confirm: true,
-        description: 'Training Session Booking'
+        description: "Training Session Booking",
       });
-
-    } else if (type === 'booking') {
+    } else if (type === "booking") {
       // Handle booking payments here
       const costForService = async (alias) => {
         let cost;
@@ -205,22 +222,26 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       // Handle booking payment
       paymentIntent = await stripe.paymentIntents.create({
         amount: cost * 100, // Use the calculated cost
-        currency: 'inr',
+        currency: "inr",
         customer: customer.id,
-        payment_method: 'pm_card_visa',
+        payment_method: "pm_card_visa",
         off_session: true,
         confirm: true,
-        description: 'Service Booking'
+        description: "Service Booking",
       });
     } else {
-      return res.status(400).json({ success: false, message: 'Invalid product type' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid product type" });
     }
 
-    console.log('Payment Intent:', paymentIntent); // Log the payment intent
+    console.log("Payment Intent:", paymentIntent); // Log the payment intent
 
     // Check if paymentIntent is defined
     if (!paymentIntent) {
-      return res.status(400).json({ success: false, message: 'Payment intent creation failed' });
+      return res
+        .status(400)
+        .json({ success: false, message: "Payment intent creation failed" });
     }
 
     // Respond with the payment intent client secret
@@ -229,15 +250,13 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       clientSecret: paymentIntent.client_secret,
     });
   } catch (error) {
-    console.error('Error in createPaymentIntent:', error);
+    console.error("Error in createPaymentIntent:", error);
     res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
-
-
 
 exports.updatePayment = catchAsyncError(async (req, res) => {
   const { type, userId, bookingId, isPaid } = req.body;
@@ -253,7 +272,7 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
 
       const transaction = await TransactionModel.findOne({
         clientId: new mongoose.Types.ObjectId(userId),
-        service_type: "planPurchase"
+        service_type: "planPurchase",
       }).sort({ createdAt: -1 });
       if (!transaction) {
         return res
@@ -261,7 +280,7 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
           .json({ success: false, message: "Transaction not found" });
       }
 
-      console.log("transaction", transaction)
+      console.log("transaction", transaction);
 
       user.plan_payment = isPaid ? "paid" : "failed";
       transaction.payment_status = isPaid ? "paid" : "failed";
@@ -303,7 +322,7 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
           .status(404)
           .json({ success: false, message: "Transaction not found" });
       }
-      console.log("ispaid", isPaid)
+      console.log("ispaid", isPaid);
 
       booking.status = isPaid ? "paid" : "failed";
       transaction.payment_status = isPaid ? "paid" : "failed";
@@ -329,67 +348,94 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
   }
 });
 
-exports.cancelTransactionWithStripe = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
+exports.cancelTransactionWithStripe = catchAsyncError(
+  async (req, res, next) => {
+    const { id } = req.params;
 
-  console.log("idd", id)
-  try {
-    // Find the transaction by ID
-    const transaction = await transactionModel.findById(id);
+    console.log("idd", id);
+    try {
+      // Find the transaction by ID
+      const transaction = await transactionModel.findById(id);
 
-    if (!transaction) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      if (!transaction) {
+        return res.status(404).json({ error: "Transaction not found" });
+      }
+
+      // Check if the transaction is for a subscription
+      if (!transaction.subscriptionId) {
+        return next(
+          new ErrorHandler(
+            `No subscription associated with this transaction`,
+            500
+          )
+        );
+      }
+
+      // Retrieve the subscription from Stripe
+      const stripeSubscription = await stripe.subscriptions.retrieve(
+        transaction.subscriptionId
+      );
+
+      // Check if the subscription is still in the trial period
+      const trialEnd = stripeSubscription.trial_end
+        ? moment.unix(stripeSubscription.trial_end)
+        : null;
+
+      if (trialEnd && trialEnd.isAfter(moment())) {
+        return next(
+          new ErrorHandler(
+            `You cannot cancel the subscription before ${trialEnd.format(
+              "MM-DD-YYYY"
+            )}`,
+            500
+          )
+        );
+      }
+
+      // Check the phase duration and allow cancellation only after 3/6 months
+      const currentDate = moment();
+      const transactionStartDate = moment(transaction.createdAt); // Assuming createdAt is the start of the subscription
+
+      let allowedCancellationPeriod;
+
+      // Set allowed cancellation period based on the transaction phase or plan
+      if (transaction.phase === "Basic") {
+        allowedCancellationPeriod = 3; // Basic phase (Novice) - 3 months duration
+      } else {
+        allowedCancellationPeriod = 6; // Other phases - 6 months duration
+      }
+
+      // Check if the time difference is less than the allowed cancellation period
+      const monthsElapsed = currentDate.diff(transactionStartDate, "months");
+      if (monthsElapsed < allowedCancellationPeriod) {
+        return next(
+          new ErrorHandler(
+            `Cancellation is only allowed after ${allowedCancellationPeriod} months from the phase start date.`,
+            500
+          )
+        );
+      }
+
+      // Cancel the Stripe subscription
+      const canceledSubscription = await stripe.subscriptions.cancel(
+        transaction.stripe_subscription_id
+      );
+
+      // Update the transaction's status to canceled
+      transaction.payment_status = "canceled";
+      await transaction.save();
+
+      return res.status(200).json({
+        success: true,
+        message: `Transaction and subscription ${transactionId} have been canceled successfully.`,
+        transaction,
+        stripeResponse: canceledSubscription,
+      });
+    } catch (error) {
+      console.error("Error canceling subscription:", error);
+      return res
+        .status(500)
+        .json({ error: "Failed to cancel the subscription" });
     }
-
-    // Check if the transaction is for a subscription
-    if (!transaction.subscriptionId) {
-      return next(new ErrorHandler(`No subscription associated with this transaction`, 500))
-    }
-
-    // Retrieve the subscription from Stripe
-    const stripeSubscription = await stripe.subscriptions.retrieve(transaction.subscriptionId);
-
-    // Check if the subscription is still in the trial period
-    const trialEnd = stripeSubscription.trial_end ? moment.unix(stripeSubscription.trial_end) : null;
-
-    if (trialEnd && trialEnd.isAfter(moment())) {
-      return next(new ErrorHandler(`You cannot cancel the subscription before ${trialEnd.format('YYYY-MM-DD')}`, 500))
-    }
-
-    // Check the phase duration and allow cancellation only after 3/6 months
-    const currentDate = moment();
-    const transactionStartDate = moment(transaction.createdAt); // Assuming createdAt is the start of the subscription
-
-    let allowedCancellationPeriod;
-
-    // Set allowed cancellation period based on the transaction phase or plan
-    if (transaction.phase === 'Basic') {
-      allowedCancellationPeriod = 3; // Basic phase (Novice) - 3 months duration
-    } else {
-      allowedCancellationPeriod = 6; // Other phases - 6 months duration
-    }
-
-    // Check if the time difference is less than the allowed cancellation period
-    const monthsElapsed = currentDate.diff(transactionStartDate, 'months');
-    if (monthsElapsed < allowedCancellationPeriod) {
-      return next(new ErrorHandler(`Cancellation is only allowed after ${allowedCancellationPeriod} months from the phase start date.`, 500))
-    }
-
-    // Cancel the Stripe subscription
-    const canceledSubscription = await stripe.subscriptions.cancel(transaction.stripe_subscription_id);
-
-    // Update the transaction's status to canceled
-    transaction.payment_status = 'canceled';
-    await transaction.save();
-
-    return res.status(200).json({
-      success: true,
-      message: `Transaction and subscription ${transactionId} have been canceled successfully.`,
-      transaction,
-      stripeResponse: canceledSubscription,
-    });
-  } catch (error) {
-    console.error('Error canceling subscription:', error);
-    return res.status(500).json({ error: 'Failed to cancel the subscription' });
   }
-});
+);
