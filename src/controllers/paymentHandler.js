@@ -20,11 +20,6 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
   const id = userId || userid;
 
   try {
-    const transaction = await TransactionModel.findById(transactionId);
-
-    if (!transaction) {
-      return next(new ErrorHandler("Transaction not found", 404));
-    }
     // Retrieve the user from the database
     const user = await UserModel.findById(id);
     if (!user) {
@@ -60,6 +55,11 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
     let paymentIntent;
 
     if (type === "planPurchase") {
+      const transaction = await TransactionModel.findById(transactionId);
+
+      if (!transaction) {
+        return next(new ErrorHandler("Transaction not found", 404));
+      }
       const plan = await PlanModel.findOne({ name: user.plan });
       if (!plan) {
         return res
