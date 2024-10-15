@@ -208,7 +208,6 @@ const createNotification = async (title, text, user, doctor) => {
   }
 };
 
-
 function hasTimePassed(dateStr, timeStr) {
   // Parse the date part using ISO format
   const date = dayjs(dateStr); // Parses the ISO date (e.g., 2024-09-05T00:00:00.000)
@@ -249,4 +248,5 @@ module.exports = {
   createNotification,
   hasTimePassed,
   timeDiff,
+  convertTo24HourFormat,
 };
