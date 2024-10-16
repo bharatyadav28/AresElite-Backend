@@ -123,12 +123,9 @@ exports.login = catchAsyncError(async (req, res, next) => {
   res.status(201).json({ user, token });
 });
 
-
 exports.sendMe = catchAsyncError(async (req, res, next) => {
   const userId = req.userId;
-  const user = await userModel
-    .findById(userId)
-    .select("-password");
+  const user = await userModel.findById(userId).select("-password");
   if (user.role !== "athlete") {
     return next(new ErrorHandler("Unauthorized! Access Denied ", 400));
   }
@@ -137,9 +134,9 @@ exports.sendMe = catchAsyncError(async (req, res, next) => {
     return next(new ErrorHandler("Invalid user", 401));
   }
 
-const token  =req.headers.authorization.split(" ")[1]
-console.log("user", user)
-console.log("token", token)
+  const token = req.headers.authorization.split(" ")[1];
+  console.log("user", user);
+  console.log("token", token);
   res.status(201).json({ user, token });
 });
 

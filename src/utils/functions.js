@@ -237,6 +237,35 @@ function hasTimePassed(dateStr, timeStr) {
   return now.isAfter(givenDateTime);
 }
 
+function sortServices(services) {
+  const customOrder = [
+    "Sports Vision Performance Evaluation",
+    "Glasses Exam",
+    "Contact Lens Exam",
+    "Post-Concussion Evaluation",
+    "Medical/Office Visit",
+    "Consultation Call",
+  ];
+
+  services.sort((a, b) => {
+    const indexA = customOrder.indexOf(a.name);
+    const indexB = customOrder.indexOf(b.name);
+
+    if (indexA === -1 && indexB === -1) {
+      return 0;
+    }
+    if (indexA === -1) {
+      return 1;
+    }
+    if (indexB === -1) {
+      return -1;
+    }
+    return indexA - indexB;
+  });
+
+  return services;
+}
+
 module.exports = {
   filterBookedSlots,
   addDuration,
@@ -249,4 +278,5 @@ module.exports = {
   hasTimePassed,
   timeDiff,
   convertTo24HourFormat,
+  sortServices,
 };

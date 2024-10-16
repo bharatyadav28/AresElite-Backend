@@ -17,6 +17,7 @@ const {
   filterBookedSlots,
   timeDiff,
   convertTo24HourFormat,
+  sortServices,
 } = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
@@ -1428,9 +1429,11 @@ exports.getAllServices = catchAsyncError(async (req, res, next) => {
 
 exports.getServiceTypes = catchAsyncError(async (req, res, next) => {
   const serviceType = await ServiceTypeModel.find();
+  const services = sortServices(serviceType);
+
   res.status(200).json({
     success: true,
-    serviceType,
+    serviceType: services,
   });
 });
 

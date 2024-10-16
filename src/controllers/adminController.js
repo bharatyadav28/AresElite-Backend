@@ -44,6 +44,7 @@ const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 
 const mongoose = require("mongoose");
 const shipment = require("../models/shipment");
+const { sortServices } = require("../utils/functions");
 
 const sendData = (user, statusCode, res) => {
   const token = user.getJWTToken();
@@ -291,18 +292,18 @@ exports.evaluationFormMake = catchAsyncError(async (req, res, next) => {
     EvaluationModel.schema.add(
       values
         ? {
-          [toCamelCase(fieldName)]: {
-            type: String,
-            required: [true, "Required"],
-            enum: values,
-          },
-        }
+            [toCamelCase(fieldName)]: {
+              type: String,
+              required: [true, "Required"],
+              enum: values,
+            },
+          }
         : {
-          [toCamelCase(fieldName)]: {
-            type: String,
-            required: [true, "Required"],
-          },
-        }
+            [toCamelCase(fieldName)]: {
+              type: String,
+              required: [true, "Required"],
+            },
+          }
     );
     res.status(200).json({
       success: true,
@@ -334,18 +335,18 @@ exports.prescriptionFormMake = catchAsyncError(async (req, res, next) => {
     PrescriptionModel.schema.add(
       values
         ? {
-          [toCamelCase(fieldName)]: {
-            type: String,
-            required: [true, "Required"],
-            enum: values,
-          },
-        }
+            [toCamelCase(fieldName)]: {
+              type: String,
+              required: [true, "Required"],
+              enum: values,
+            },
+          }
         : {
-          [toCamelCase(fieldName)]: {
-            type: String,
-            required: [true, "Required"],
-          },
-        }
+            [toCamelCase(fieldName)]: {
+              type: String,
+              required: [true, "Required"],
+            },
+          }
     );
     res.status(200).json({
       success: true,
@@ -443,7 +444,9 @@ exports.addSlot = catchAsyncError(async (req, res, next) => {
   const [day, month, year] = startDate.split("/");
 
   const formattedDate = new Date(
-    `${year}-${month.length === 1 ? '0' + month : month}-${day.length === 1 ? '0' + day : day}T00:00:00.000Z`
+    `${year}-${month.length === 1 ? "0" + month : month}-${
+      day.length === 1 ? "0" + day : day
+    }T00:00:00.000Z`
   );
   formattedDate.setUTCHours(0);
   formattedDate.setUTCMinutes(0);
@@ -770,17 +773,16 @@ exports.editDoc = catchAsyncError(async (req, res, next) => {
 });
 
 exports.addPlan = catchAsyncError(async (req, res, next) => {
-  const {
-    name,
-    oneTimeCharge,
-    phases,
-    features,
-    recurring,
-    validity,
-  } = req.body;
+  const { name, oneTimeCharge, phases, features, recurring, validity } =
+    req.body;
 
   // Validate required fields
-  if (!name || (!oneTimeCharge && (!phases || phases.length === 0)) || !features || !validity) {
+  if (
+    !name ||
+    (!oneTimeCharge && (!phases || phases.length === 0)) ||
+    !features ||
+    !validity
+  ) {
     return next(new ErrorHandler("All required fields must be filled!", 400));
   }
 
@@ -791,7 +793,7 @@ exports.addPlan = catchAsyncError(async (req, res, next) => {
   }
 
   // Prepare the phases to store in the database
-  const updatedPhases = phases.map(phase => ({
+  const updatedPhases = phases.map((phase) => ({
     name: phase.name,
     duration: phase.duration,
     cost: phase.cost,
@@ -816,12 +818,12 @@ exports.addPlan = catchAsyncError(async (req, res, next) => {
 });
 
 exports.getSinglePlan = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params
+  const { id } = req.params;
 
-  const plan = await PlanModel.findById(id)
+  const plan = await PlanModel.findById(id);
 
-  res.status(200).json({ success: true, plan })
-})
+  res.status(200).json({ success: true, plan });
+});
 
 exports.addService = catchAsyncError(async (req, res, next) => {
   const { name, cost, duration } = req.body;
@@ -876,9 +878,11 @@ exports.editService = catchAsyncError(async (req, res, next) => {
 
 exports.getService = catchAsyncError(async (req, res, next) => {
   const plans = await ServiceTypeModel.find();
+  const services = sortServices(plans);
+
   res.status(200).json({
     success: true,
-    plans,
+    plans: services,
   });
 });
 
