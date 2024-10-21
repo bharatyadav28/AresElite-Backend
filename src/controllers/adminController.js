@@ -923,10 +923,12 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
   }
   const users = await userModel
     .find(query)
-    .sort({ createdAt: "desc" })
+    // .sort({ createdAt: -1 })
     .skip((page - 1) * limit)
     .limit(limit)
     .exec();
+
+  console.log("users", users, users.length);
 
   const totalRecords = await userModel.countDocuments(query);
 
