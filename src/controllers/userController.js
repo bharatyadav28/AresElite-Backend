@@ -412,6 +412,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
   // Get the current date and time
   const currentDateTime = dayjs();
 
+  console.log("current time", currentDateTime);
+  console.log("providesd time", providedDateTime, app_date, app_time, end_time);
+
   // Compare the provided date and time with the current date and time
   if (providedDateTime.isBefore(currentDateTime)) {
     return next(new ErrorHandler("Can't book appointment in past", 400));

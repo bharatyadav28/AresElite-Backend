@@ -1,10 +1,12 @@
+process.env.TZ = "Asia/Kolkata";
+
 const express = require("express");
 const cors = require("cors");
 const Log = require("./src/models/logModel.js");
 const errorMiddleware = require("./src/middlewares/error.js");
 const connectDB = require("./src/config/database.js");
 const dotenv = require("dotenv");
-const morgan = require("morgan")
+const morgan = require("morgan");
 const app = express();
 
 dotenv.config({ path: "./src/config/.env" });
