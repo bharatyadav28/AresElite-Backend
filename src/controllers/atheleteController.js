@@ -149,7 +149,7 @@ exports.sendForgotPasswordCode = catchAsyncError(async (req, res, next) => {
   const code = generateCode(6);
 
   await userModel.findOneAndUpdate({ email }, { temp_code: code });
-  resetPasswordCode(email, user.fullname, code);
+  await resetPasswordCode(email, user.firstName + " " + user.lastName, code);
 
   res.status(200).json({
     success: true,
@@ -224,6 +224,13 @@ exports.editProfile = catchAsyncError(async (req, res, next) => {
   const athlete = await userModel.findById(userId).select("-password");
   // const result = await s3UpdateImage(file, athlete.profilePic);
   // const location = result.Location && result.Location;
+
+  if (athlete.email !== email) {
+    const user = await userModel.findOne({ email });
+    if (user) {
+      return next(new ErrorHandler("Email already exists", 400));
+    }
+  }
 
   firstName && (athlete.firstName = firstName);
   lastName && (athlete.lastName = lastName);
