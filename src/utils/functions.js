@@ -130,14 +130,13 @@ const calculateTimeDifference = async (time1, serviceType, time2, duration) => {
 
   const differenceInMinutes = Math.abs(totalMinutes2 - totalMinutes1);
 
-  const piecesCount = Math.floor(
-    differenceInMinutes / (await timeForService(duration))
-  );
+  const timeDuration = await timeForService(duration);
+  const piecesCount = Math.floor(differenceInMinutes / timeDuration);
 
   const timeDiffInPieces = [];
 
   for (let i = 0; i < piecesCount; i++) {
-    const currentMinutes = totalMinutes1 + i * (await timeForService(duration));
+    const currentMinutes = totalMinutes1 + i * timeDuration;
     const hours = Math.floor(currentMinutes / 60) % 24;
     const minutes = currentMinutes % 60;
     const ampm = hours >= 12 ? "PM" : "AM";
