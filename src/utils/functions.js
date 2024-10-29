@@ -43,6 +43,7 @@ const timeForService = async (alias) => {
 };
 
 const convertTo24HourFormat = (time12Hour) => {
+  console.log("ttttttt", time12Hour);
   const [hour, minute, period] = time12Hour
     .match(/(\d+):(\d+)\s*(AM|PM)/i)
     .slice(1);
@@ -82,7 +83,19 @@ const sendData = (user, statusCode, res) => {
   });
 };
 
+function formatTime(time) {
+  let [hourMinute, period] = time.split(" ");
+  let [hour, minute] = hourMinute.split(":").map(Number);
+
+  // Ensure both hour and minute are two digits
+  hour = hour.toString().padStart(2, "0");
+  minute = minute.toString().padStart(2, "0");
+
+  return `${hour}:${minute} ${period}`;
+}
+
 const timeDiff = async (service_type, time1, time2) => {
+  console.log("time service", time1, time2);
   const serviceTime = await timeForService(service_type);
   const [hours1, minutes1] = convertTo24HourFormat(time1)
     .split(":")
@@ -278,4 +291,5 @@ module.exports = {
   timeDiff,
   convertTo24HourFormat,
   sortServices,
+  formatTime,
 };

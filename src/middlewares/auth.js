@@ -31,7 +31,7 @@ exports.auth = async (req, res, next) => {
     next();
   } catch (error) {
     return res.status(401).send({
-      error: { message: `Unauthorized server error ${(error, token)}` },
+      error: { message: `Please login again to continue` },
     });
   }
 };

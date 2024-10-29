@@ -23,6 +23,7 @@ const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const { hasTimePassed } = require("../utils/functions.js");
 
 const { createNotification } = require("../utils/functions.js");
+const { duration } = require("moment");
 
 exports.register = catchAsyncError(async (req, res, next) => {
   const {
@@ -325,9 +326,13 @@ exports.getBookings = catchAsyncError(async (req, res, next) => {
     };
     appoint && sortedAppointments.push(appoint);
   });
+
+  const freeServices = await ServiceTypeModel.find({ cost: 0 });
+  const freeServicesNames = freeServices.map((service) => service.alias);
   res.status(200).json({
     success: true,
     sortedAppointments,
+    freeServicesNames,
   });
 });
 
@@ -357,10 +362,14 @@ exports.getTransactions = catchAsyncError(async (req, res, next) => {
     .find(query)
     .sort({ createdAt: -1 });
 
+  const freeServices = await ServiceTypeModel.find({ cost: 0 });
+  const freeServicesNames = freeServices.map((service) => service.alias);
+
   res.status(200).json({
     success: true,
     message: "Fetched transactions",
     transactions: transactions,
+    freeServicesNames,
   });
 });
 
@@ -417,6 +426,8 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
 
     let teleBookings = teleBookingsData?.count;
     teleBookings = teleBookings < 0 ? 0 : teleBookings;
+
+    console.log("bac", offlineDrills, teleBookings);
 
     if (isDrill.length > 0) {
       const calcPipe = [
@@ -746,11 +757,14 @@ exports.recentBookings = catchAsyncError(async (req, res) => {
     (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
   );
 
+  const freeServices = await ServiceTypeModel.find({ cost: 0 });
+  const freeServicesNames = freeServices.map((service) => service.alias);
   const totalRecords = appointments.length;
   res.json({
     appointments: result,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
+    freeServicesNames,
   });
 });
 

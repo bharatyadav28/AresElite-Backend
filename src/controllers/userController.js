@@ -18,6 +18,7 @@ const {
   timeDiff,
   convertTo24HourFormat,
   sortServices,
+  formatTime,
 } = require("../utils/functions");
 const ServiceTypeModel = require("../models/ServiceTypeModel.js");
 const planModel = require("../models/planModel.js");
@@ -42,6 +43,7 @@ const TeleSessionsModel = require("../models/TeleSessionsModel");
 
 const BookingServiceModel = require("../models/BookingService.js");
 const { s3Uploadv2 } = require("../utils/aws.js");
+const { format } = require("util");
 
 exports.getProfile = catchAsyncError(async (req, res, next) => {
   const email = req.query.email;
@@ -91,6 +93,12 @@ exports.editClientProfile = catchAsyncError(async (req, res, next) => {
   }
   if (doctor.role !== "athlete") {
     return next(new ErrorHandler("Not a athlete.", 404));
+  }
+
+  console.log("/^d+$/".test(zip));
+
+  if (!"/^d+$/".test(zip)) {
+    return next(new ErrorHandler("Zip code should be a number.", 404));
   }
 
   firstName && (doctor.firstName = firstName);
@@ -1325,6 +1333,7 @@ exports.getSlots = catchAsyncError(async (req, res) => {
     }
     if (dayAppointments.length === 1) {
       console.log("Data3", data);
+
       const promises = dayAppointments.map((app, index) => {
         calculateTimeDifference(
           doc[0].startTime,
@@ -1365,14 +1374,15 @@ exports.getSlots = catchAsyncError(async (req, res) => {
 
         slots = await Promise.all(
           Calcslots.map(async (slot, index) => {
-            let endInt = Calcslots[index + 1];
+            let endTime = Calcslots[index + 1];
             if (Calcslots[index + 1] == null) {
-              endInt = await timeDiff(
+              endTime = await timeDiff(
                 service_type,
                 Calcslots[index],
                 doc[0].endTime
               );
             }
+            const endInt = formatTime(endTime);
             return [slot, endInt];
           })
         );
