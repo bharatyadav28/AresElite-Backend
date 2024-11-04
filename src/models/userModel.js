@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
+const { max } = require("moment");
 
 const roleEnum = ["admin", "doctor", "athlete"];
 const paymentStatus = ["paid", "pending", "failed", "N.A."];
@@ -41,7 +42,7 @@ const userSchema = new mongoose.Schema({
     trim: true,
   },
   phone: {
-    type: Number,
+    type: String,
     trim: true,
   },
   state: {

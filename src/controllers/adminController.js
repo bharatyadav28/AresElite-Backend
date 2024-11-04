@@ -928,8 +928,6 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
     .limit(limit)
     .exec();
 
-  console.log("users", users, users.length);
-
   const totalRecords = await userModel.countDocuments(query);
 
   res.json({
