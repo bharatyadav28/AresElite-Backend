@@ -1615,6 +1615,8 @@ exports.updateDrill = catchAsyncError(async (req, res, next) => {
   if (!id || !formdata)
     return next(new ErrorHandler("id and formdata are required", 400));
 
+  console.log("formdata", formdata);
+  // const drill = false;
   const drill = await DrillModel.findByIdAndUpdate(id, formdata);
   if (!drill) {
     return next(new ErrorHandler("Drill not found or updated", 400));
