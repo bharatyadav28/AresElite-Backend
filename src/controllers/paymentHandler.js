@@ -123,6 +123,8 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         const trialEndDate =
           Math.floor(Date.now() / 1000) + phase.duration * 30 * 24 * 60 * 60; // Current time + duration in seconds
 
+        console.log("Trial End: ", trialEndDate)
+
         // Create the subscription with trial end set
         const subscription = await stripe.subscriptions.create({
           customer: customer.id,
