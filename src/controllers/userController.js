@@ -535,10 +535,10 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "TrainingSessions" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
@@ -562,9 +562,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "OfflineVisit" ||
-        service_type === "TeleSession"
+          service_type === "ConsultationCall" ||
+          service_type === "OfflineVisit" ||
+          service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -622,8 +622,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-      service_type === "ConsultationCall" ||
-      service_type === "TrainingSessions"
+        service_type === "ConsultationCall" ||
+        service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -959,39 +959,39 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   const isFirstPhase = planPhase === "Phase 1";
 
   // 1. If the user is new, they must start with Novice Basic
-  if (!currentPlan && plan !== "Novice") {
-    return next(
-      new ErrorHandler("New users must start with the Novice Basic plan.", 400)
-    );
-  }
+  // if (!currentPlan && plan !== "Novice") {
+  //   return next(
+  //     new ErrorHandler("New users must start with the Novice Basic plan.", 400)
+  //   );
+  // }
 
   // 2. If the user is on Novice Basic, they can only select Phase 1 of other plans
-  if (currentPlan === "Novice" && !isFirstPhase) {
-    return next(
-      new ErrorHandler(
-        "You must start with Phase 1 when transitioning from Novice Basic.",
-        400
-      )
-    );
-  }
+  // if (currentPlan === "Novice" && !isFirstPhase) {
+  //   return next(
+  //     new ErrorHandler(
+  //       "You must start with Phase 1 when transitioning from Novice Basic.",
+  //       400
+  //     )
+  //   );
+  // }
 
   // 3. Ensure users can only progress sequentially within the same plan
-  if (currentPlan === plan && currentPhase !== planPhase) {
-    const validProgression = await validateProgression(
-      currentPlan,
-      currentPhase,
-      plan,
-      planPhase
-    );
-    if (!validProgression) {
-      return next(
-        new ErrorHandler(
-          "Invalid progression. Complete the current phase before progressing.",
-          400
-        )
-      );
-    }
-  }
+  // if (currentPlan === plan && currentPhase !== planPhase) {
+  //   const validProgression = await validateProgression(
+  //     currentPlan,
+  //     currentPhase,
+  //     plan,
+  //     planPhase
+  //   );
+  //   if (!validProgression) {
+  //     return next(
+  //       new ErrorHandler(
+  //         "Invalid progression. Complete the current phase before progressing.",
+  //         400
+  //       )
+  //     );
+  //   }
+  // }
 
   // Create or update DrillForm for the user if not already existing
   const DrillFormUser = await DrillForm.find({
@@ -1975,8 +1975,7 @@ exports.drillUpdate = catchAsyncError(async (req, res, next) => {
       if (nextDayNotify) {
         await createNotification(
           "Incomplete Drill",
-          `Your week ${r.drill[currentDayIndex + 1].week} day ${
-            r.drill[currentDayIndex + 1].day
+          `Your week ${r.drill[currentDayIndex + 1].week} day ${r.drill[currentDayIndex + 1].day
           } drill is not complete, Click here to complete`,
           userId
         );
@@ -2256,12 +2255,10 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
       : "Doctor has selected your plan";
   const message =
     checkUser.role == "athlete"
-      ? `You have selected ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan`
-      : `A plan has been selected by doctor, your are in ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan `;
+      ? `You have selected ${client.plan === "offline" ? "In-office" : client.plan
+      } plan`
+      : `A plan has been selected by doctor, your are in ${client.plan === "offline" ? "In-office" : client.plan
+      } plan `;
 
   let doctor = "";
   if (checkUser.role !== "athlete") {
@@ -2515,8 +2512,7 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
   if (result.sessions.length < result.numOfSessions) {
     await createNotification(
       "Upcoming Drill",
-      `Your Session ${
-        Number(newSession.session.split(" ")[1]) + 1
+      `Your Session ${Number(newSession.session.split(" ")[1]) + 1
       } is pending. Book it now`,
       appointment.client
     );
