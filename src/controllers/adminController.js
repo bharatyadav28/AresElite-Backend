@@ -45,6 +45,7 @@ const { s3Uploadv2, s3UploadMultiv2, s3Delete } = require("../utils/aws");
 const mongoose = require("mongoose");
 const shipment = require("../models/shipment");
 const { sortServices } = require("../utils/functions");
+const transactionModel = require("../models/transactionModel");
 
 const sendData = (user, statusCode, res) => {
   const token = user.getJWTToken();
@@ -1696,8 +1697,13 @@ exports.getTransactions = catchAsyncError(async (req, res, next) => {
 });
 
 exports.updateTransaction = catchAsyncError(async (req, res, next) => {
-  const { id, status } = req.query;
-  console.log(status);
+  const { id, status, service_type, booking_id } = req.query;
+
+  const allServices = await ServiceTypeModel.find({
+    alias: { $ne: "TrainingSessions" },
+  });
+
+  const serviceNames = allServices.map((service) => service.alias);
 
   if (!id || !status)
     return next(new ErrorHandler(`Transaction is not found`, 404));
@@ -1710,6 +1716,13 @@ exports.updateTransaction = catchAsyncError(async (req, res, next) => {
     transaction.payment_status = status;
     await transaction.save();
     await user.save();
+
+    if (serviceNames.includes(service_type) && booking_id) {
+      const appointment = await appointmentModel.findById(booking_id);
+      appointment.status = status;
+      await appointment.save();
+    }
+
     return res.status(200).json({
       success: true,
       transaction,
@@ -1799,11 +1812,27 @@ exports.updateBooking = catchAsyncError(async (req, res, next) => {
     );
   }
 
+  const allServices = await ServiceTypeModel.find({
+    alias: { $ne: "TrainingSessions" },
+  });
+
+  const serviceNames = allServices.map((service) => service.alias);
+
   const appointment = await appointmentModel.findById(id);
   appointment.status = status;
   appointment.service_status = service_status;
 
   appointment.save();
+
+  const service_type = appointment.service_type;
+  if (serviceNames.includes(service_type)) {
+    const transaction = await transactionModel.findOne({
+      bookingId: id,
+      clientId: appointment.client,
+    });
+    transaction.payment_status = status;
+    await transaction.save();
+  }
 
   return res.status(200).json({
     success: true,
