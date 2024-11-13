@@ -68,6 +68,7 @@ const {
   getAllShipmentUsers,
   addPlan,
   getSinglePlan,
+  getAllFormsData,
 } = require("../controllers/adminController");
 
 const {
@@ -137,9 +138,9 @@ router
   .route("/plans")
   .put(auth, isAdmin, updatePlan)
   .get(auth, isAdmin, getPlan)
-  .post(auth, addPlan)
+  .post(auth, addPlan);
 
-router.get("/plan/:id", getSinglePlan)
+router.get("/plan/:id", getSinglePlan);
 
 router
   .route("/drill")
@@ -193,5 +194,7 @@ router
   .route("/dynamic-drills/col/:id")
   .put(auth, isAdmin, updateColumn)
   .delete(auth, isAdmin, deleteColumn);
+
+router.get("/all-form-data/:id", auth, isAdmin, getAllFormsData);
 
 module.exports = router;

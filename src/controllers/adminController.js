@@ -46,6 +46,8 @@ const mongoose = require("mongoose");
 const shipment = require("../models/shipment");
 const { sortServices } = require("../utils/functions");
 const transactionModel = require("../models/transactionModel");
+const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
+const TeleSessionsModel = require("../models/TeleSessionsModel");
 
 const sendData = (user, statusCode, res) => {
   const token = user.getJWTToken();
@@ -938,6 +940,55 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
   });
 });
 
+exports.getAllFormsData = catchAsyncError(async (req, res, next) => {
+  const { id: userId } = req.params;
+
+  try {
+    const bookingServices = [
+      "SportsVisionPerformanceEvaluation",
+      "Post-ConcussionEvaluation",
+      "GlassesExam",
+      "ContactLensExam",
+    ];
+
+    console.log("userID", userId);
+
+    const appointments = await appointmentModel
+      .find({
+        client: userId,
+        service_type: { $in: bookingServices },
+      })
+      .sort({ createdAt: 1 });
+
+    const firstBookedAppointment = appointments[0];
+    if (!firstBookedAppointment) {
+      return next(new ErrorHandler("No Form data Found", 400));
+    }
+
+    console.log("sdsdsd", firstBookedAppointment._id);
+
+    const evalForm = await EvalationModel.findOne({
+      appointmentId: firstBookedAppointment._id,
+    });
+    const diagForm = await DiagnosisForm.findOne({
+      appointmentId: firstBookedAppointment._id,
+    });
+    const presForm = await PrescriptionForm.findOne({
+      appointmentId: firstBookedAppointment._id,
+    });
+    res.json({
+      success: true,
+      data: {
+        evalForm,
+        diagForm,
+        presForm,
+      },
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
 exports.getAllShipmentUsers = catchAsyncError(async (req, res, next) => {
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 8;
@@ -1712,10 +1763,24 @@ exports.updateTransaction = catchAsyncError(async (req, res, next) => {
     const transaction = await TransactionalModel.findById(id);
     const clientId = transaction.clientId.toString();
     const user = await userModel.findById(clientId);
-    user.plan_payment = status;
+    if (user.is_online && service_type === "planPurchase") {
+      user.plan_payment = status;
+      await user.save();
+
+      await OfflineAtheleteDrillsModel.create({
+        client: new mongoose.Types.ObjectId(user._id),
+        appointment: new mongoose.Types.ObjectId(booking_id),
+        numOfSessions: 2,
+      });
+
+      const result = await TeleSessionsModel.create({
+        user: new mongoose.Types.ObjectId(user._id),
+        count: 2,
+      });
+      console.log("TeleSession created: ", result);
+    }
     transaction.payment_status = status;
     await transaction.save();
-    await user.save();
 
     if (serviceNames.includes(service_type) && booking_id) {
       const appointment = await appointmentModel.findById(booking_id);

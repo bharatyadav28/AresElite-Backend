@@ -535,10 +535,10 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
       status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "TrainingSessions" ||
-          service_type === "OfflineVisit" ||
-          service_type === "TeleSession"
+        service_type === "ConsultationCall" ||
+        service_type === "TrainingSessions" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
     });
@@ -562,9 +562,9 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       date,
       payment_status:
         service_type === "Consultation" ||
-          service_type === "ConsultationCall" ||
-          service_type === "OfflineVisit" ||
-          service_type === "TeleSession"
+        service_type === "ConsultationCall" ||
+        service_type === "OfflineVisit" ||
+        service_type === "TeleSession"
           ? "paid"
           : "pending",
       bookingId: appointment._id,
@@ -622,8 +622,8 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
     status:
       service_type === "Consultation" ||
-        service_type === "ConsultationCall" ||
-        service_type === "TrainingSessions"
+      service_type === "ConsultationCall" ||
+      service_type === "TrainingSessions"
         ? "paid"
         : "pending",
   });
@@ -939,24 +939,35 @@ exports.inQueueEvaluation = catchAsyncError(async (req, res) => {
 });
 
 exports.selectPlan = catchAsyncError(async (req, res, next) => {
-  const { plan, planPhase, mode } = req.query;
-  const userID = req.userId; // ID from token
+  const { plan, planPhase, mode, userId } = req.query;
+  const requestUserId = req.userId; // ID from token
 
-  console.log(plan, planPhase, mode);
+  console.log(userId, requestUserId);
+
+  let userID = "";
+  let doctorID = "";
+
+  const user = await userModel.findById(requestUserId);
+
+  if (userId) {
+    if (user.role === "doctor") {
+      userID = userId;
+      doctorID = requestUserId;
+    }
+  }
+  if (!userID) {
+    userID = requestUserId;
+  }
+
+  console.log("USer iDDD:", userID);
   // Ensure all required fields are provided
   if (!plan || !planPhase) {
     return next(new ErrorHandler("Please provide a plan and phase.", 400));
   }
 
-  // Fetch user data
-  const user = await userModel.findById(userID);
-  if (!user || user.role !== "athlete") {
-    return next(new ErrorHandler("Unauthorized! Access denied", 400));
-  }
-
-  const currentPlan = user.plan;
-  const currentPhase = user.phase;
-  const isFirstPhase = planPhase === "Phase 1";
+  // const currentPlan = user.plan;
+  // const currentPhase = user.phase;
+  // const isFirstPhase = planPhase === "Phase 1";
 
   // 1. If the user is new, they must start with Novice Basic
   // if (!currentPlan && plan !== "Novice") {
@@ -1000,6 +1011,8 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
       { clientId: new mongoose.Types.ObjectId(userID) },
     ],
   });
+
+  console.log("Drill form user", DrillFormUser);
 
   let allActivitiesComplete = true;
 
@@ -1088,6 +1101,8 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
 
   transaction.save();
 
+  console.log("created transactions: ", transaction);
+
   // Update user with the new plan, phase, and payment status
   user.plan = plan;
   user.phase = planPhase;
@@ -1096,11 +1111,27 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
   await user.save();
 
   // Notify user
-  const title = "Plan selected successfully!";
-  const message = `You have selected ${plan} and phase ${planPhase}`;
-  const isSend = await createNotification(title, message, user);
+  const title =
+    user?.role === "athlete"
+      ? "Plan selected successfully!"
+      : "Doctor has selected your plan";
+  const message = `${
+    user?.role == "athlete" ? "You have" : "Doctor has"
+  } selected plan ${plan} and phase ${planPhase}`;
 
-  console.log("isSend:", isSend);
+  let doctor = "";
+  if (user.role !== "athlete") {
+    const lastAppointment = await appointmentModel
+      .find({ client: userID })
+      .sort({ createdAt: -1 });
+
+    if (lastAppointment && lastAppointment.length > 0) {
+      doctor = lastAppointment[0].doctor_trainer;
+    }
+  }
+
+  const isSend = await createNotification(title, message, userID, doctor);
+
   if (isSend) {
     res.status(200).json({
       success: true,
@@ -1975,7 +2006,8 @@ exports.drillUpdate = catchAsyncError(async (req, res, next) => {
       if (nextDayNotify) {
         await createNotification(
           "Incomplete Drill",
-          `Your week ${r.drill[currentDayIndex + 1].week} day ${r.drill[currentDayIndex + 1].day
+          `Your week ${r.drill[currentDayIndex + 1].week} day ${
+            r.drill[currentDayIndex + 1].day
           } drill is not complete, Click here to complete`,
           userId
         );
@@ -2255,10 +2287,12 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
       : "Doctor has selected your plan";
   const message =
     checkUser.role == "athlete"
-      ? `You have selected ${client.plan === "offline" ? "In-office" : client.plan
-      } plan`
-      : `A plan has been selected by doctor, your are in ${client.plan === "offline" ? "In-office" : client.plan
-      } plan `;
+      ? `You have selected ${
+          client.plan === "offline" ? "In-office" : client.plan
+        } plan`
+      : `A plan has been selected by doctor, your are in ${
+          client.plan === "offline" ? "In-office" : client.plan
+        } plan `;
 
   let doctor = "";
   if (checkUser.role !== "athlete") {
@@ -2512,7 +2546,8 @@ exports.saveSessions = catchAsyncError(async (req, res, next) => {
   if (result.sessions.length < result.numOfSessions) {
     await createNotification(
       "Upcoming Drill",
-      `Your Session ${Number(newSession.session.split(" ")[1]) + 1
+      `Your Session ${
+        Number(newSession.session.split(" ")[1]) + 1
       } is pending. Book it now`,
       appointment.client
     );
