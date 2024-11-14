@@ -9,6 +9,7 @@ const AppointmentModel = require("../models/appointmentModel");
 const TransactionModel = require("../models/transactionModel");
 const OfflineAtheleteDrillsModel = require("../models/OfflineAtheleteDrills");
 const TeleSessionsModel = require("../models/TeleSessionsModel");
+const TrainingSessionModel = require("../models/trainingSessionModel");
 const transactionModel = require("../models/transactionModel");
 const moment = require("moment"); // To handle date calculations
 const ErrorHandler = require("../utils/errorHandler");
@@ -18,6 +19,8 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
   const { type, userId, phaseName, transactionId } = product; // Added phaseName
   const userid = req.userId;
   const id = userId || userid;
+
+  console.log("Type: ", type);
 
   try {
     // Retrieve the user from the database
@@ -94,12 +97,10 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         console.log("Upfront payment intent created:", paymentIntent);
       } catch (error) {
         console.error("Error creating upfront payment intent:", error);
-        return res
-          .status(500)
-          .json({
-            success: false,
-            message: "Error creating upfront payment intent",
-          });
+        return res.status(500).json({
+          success: false,
+          message: "Error creating upfront payment intent",
+        });
       }
 
       // Step 2: Create the recurring subscription starting after the initial duration
@@ -123,7 +124,7 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         const trialEndDate =
           Math.floor(Date.now() / 1000) + phase.duration * 30 * 24 * 60 * 60; // Current time + duration in seconds
 
-        console.log("Trial End: ", trialEndDate)
+        console.log("Trial End: ", trialEndDate);
 
         // Create the subscription with trial end set
         const subscription = await stripe.subscriptions.create({
@@ -157,14 +158,12 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         });
       } catch (error) {
         console.error("Error creating recurring subscription:", error);
-        return res
-          .status(500)
-          .json({
-            success: false,
-            message: "Error creating recurring subscription",
-          });
+        return res.status(500).json({
+          success: false,
+          message: "Error creating recurring subscription",
+        });
       }
-    } else if (type === "trainingSession") {
+    } else if (type === "TrainingSessions") {
       const costForService = async (tId) => {
         let cost;
         if (typeof cost === "undefined") {
@@ -188,6 +187,8 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         });
       console.log("tran", transaction);
       let cost = await costForService(transaction.plan);
+
+      console.log("training session cost", cost);
 
       // Handle training session payment
       paymentIntent = await stripe.paymentIntents.create({
@@ -214,12 +215,16 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         return cost || 0;
       };
       const booking = await AppointmentModel.findById(product.bookingId);
+
+      console.log("booking", booking);
       if (!booking)
         return res.status(404).json({
           success: true,
           message: "Booking not found",
         });
       let cost = await costForService(booking.service_type);
+
+      console.log("Cost:", cost);
 
       // Handle booking payment
       paymentIntent = await stripe.paymentIntents.create({
@@ -330,6 +335,36 @@ exports.updatePayment = catchAsyncError(async (req, res) => {
       transaction.payment_status = isPaid ? "paid" : "failed";
 
       await booking.save();
+      await transaction.save();
+
+      res.status(200).json({
+        success: true,
+        message: "Updated",
+      });
+    } else if (type === "TrainingSessions") {
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, message: "User not found" });
+      }
+
+      const transaction = await TransactionModel.findOne({
+        clientId: new mongoose.Types.ObjectId(userId),
+        service_type: type,
+      }).sort({ createdAt: -1 });
+      if (!transaction) {
+        return res
+          .status(404)
+          .json({ success: false, message: "Transaction not found" });
+      }
+
+      console.log("transaction", transaction);
+
+      user.plan_payment = isPaid ? "paid" : "failed";
+      transaction.payment_status = isPaid ? "paid" : "failed";
+
+      await user.save();
       await transaction.save();
 
       res.status(200).json({

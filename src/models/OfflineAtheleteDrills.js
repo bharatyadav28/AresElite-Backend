@@ -50,6 +50,9 @@ const OfflineAtheleteDrillsSchema = new mongoose.Schema(
     serviceType: {
       type: String,
     },
+    expirationDate: {
+      type: String,
+    },
     sessions: [SessionsSchema],
     numOfSessions: {
       type: Number,

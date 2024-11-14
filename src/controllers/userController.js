@@ -31,6 +31,7 @@ const DiagnosisForm = require("../models/DiagnosisForm.js");
 const DrillForm = require("../models/DrillFormModel.js");
 const DrillFormModel = require("../models/DrillModel.js");
 const { createNotification, timeForService } = require("../utils/functions");
+const { paymentMail } = require("../utils/mails.js");
 const transactionModel = require("../models/transactionModel.js");
 const TrainingSessionModel = require("../models/trainingSessionModel.js");
 const OfflineDrill = require("../models/offlineDrillModel.js");
@@ -572,6 +573,7 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
       amount: service?.cost || bservice?.cost || cost || 0,
     });
     await transaction.save();
+
     // await offlineDrillupdate.save();
     return res.status(200).json({
       success: true,
@@ -643,6 +645,26 @@ exports.bookAppointment = catchAsyncError(async (req, res, next) => {
     amount: service.cost,
   });
   await transaction.save();
+
+  if (
+    ![
+      "Consultation" ||
+        "ConsultationCall" ||
+        "OfflineVisit" ||
+        "TeleSession" ||
+        "TrainingSessions",
+    ].includes(service_type)
+  ) {
+    const notification = await createNotification(
+      "Confirm Appointment",
+      `Complete your payment to confirm your appointment for ${service_type}`,
+      client._id,
+      doctor_trainer
+    );
+    const mail = paymentMail(client.email, client.firstName, "appointment");
+    await Promise.all([notification, mail]);
+  }
+
   res.status(200).json({
     success: true,
     message: `Appointment booked. Your Appointment ID: ${app_id}.`,
@@ -1130,9 +1152,12 @@ exports.selectPlan = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  const isSend = await createNotification(title, message, userID, doctor);
+  const notification = createNotification(title, message, userID, doctor);
 
-  if (isSend) {
+  const mail = paymentMail(user.email, user.firstName, "Plan Selection");
+  const success = await Promise.all([notification, mail]);
+
+  if (success) {
     res.status(200).json({
       success: true,
       message: `Plan updated. Current plan: ${user.plan}. Notified the user.`,
@@ -2218,7 +2243,8 @@ exports.addTrainingSession = catchAsyncError(async (req, res, next) => {
 exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   const { clientId, sessionId, mode, appointmentId } = req.query;
 
-  const { doctor_trainer, service_type } = req.body;
+  const { doctor_trainer, service_type, frequencyType } = req.body;
+  console.log("Frequency Type", frequencyType);
   console.log("sdsd", doctor_trainer, service_type);
   const authUserId = req.userId;
 
@@ -2250,10 +2276,19 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   });
   SessionForUser.save();
 
+  let expirationDate = null;
+  const today = new Date();
+  const sixMonthsFromToday = new Date(today.setMonth(today.getMonth() + 6));
+
+  // const sixMonthsFromToday = new Date(today.getTime() + 5 * 60 * 1000);
+  expirationDate = sixMonthsFromToday;
+
   const rmyes = await OfflineAtheleteDrillsModel.create({
     client: new mongoose.Types.ObjectId(clientId),
     appointment: new mongoose.Types.ObjectId(appointmentId),
     numOfSessions: TrainingSession.sessions,
+    serviceType: frequencyType,
+    expirationDate,
   });
 
   console.log("res", rmyes);
@@ -2280,19 +2315,15 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   await client.save();
 
   const checkUser = await userModel.findById(authUserId);
-
   const title =
     checkUser.role === "athlete"
-      ? "Plan selected successfully!"
-      : "Doctor has selected your plan";
+      ? "Training Sessions Selected Successfully!"
+      : "Doctor Has Selected Training Sessions";
+
   const message =
-    checkUser.role == "athlete"
-      ? `You have selected ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan`
-      : `A plan has been selected by doctor, your are in ${
-          client.plan === "offline" ? "In-office" : client.plan
-        } plan `;
+    checkUser.role === "athlete"
+      ? "You have selected training sessions."
+      : "Training sessions have been selected by the doctor for you.";
 
   let doctor = "";
   if (checkUser.role !== "athlete") {
@@ -2308,6 +2339,8 @@ exports.buyTrainingSession = catchAsyncError(async (req, res, next) => {
   console.log("doctor", doctor);
 
   const isSend = await createNotification(title, message, clientId, doctor);
+
+  await paymentMail(client.email, client.firstName, "Training Sessions");
 
   return res.status(200).json({
     success: true,

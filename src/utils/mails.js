@@ -69,10 +69,12 @@ const resetPasswordCode = async (email, name, code) => {
                 </p>
               </div>
             </div>
-          </div>`
+          </div>`,
     };
 
-    const sendMailPromise = util.promisify(smtpTransport.sendMail.bind(smtpTransport));
+    const sendMailPromise = util.promisify(
+      smtpTransport.sendMail.bind(smtpTransport)
+    );
     await sendMailPromise(options);
 
     // Close the transport after sending the email
@@ -146,10 +148,12 @@ const newAccount = async (email, name, code) => {
                 </p>
               </div>
             </div>
-          </div>`
+          </div>`,
     };
 
-    const sendMailPromise = util.promisify(smtpTransport.sendMail.bind(smtpTransport));
+    const sendMailPromise = util.promisify(
+      smtpTransport.sendMail.bind(smtpTransport)
+    );
     await sendMailPromise(options);
 
     // Close the transport after sending the email
@@ -160,4 +164,84 @@ const newAccount = async (email, name, code) => {
   }
 };
 
-module.exports = { resetPasswordCode, newAccount };
+const paymentMail = async (email, name, type) => {
+  try {
+    const smtpTransport = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL,
+        pass: process.env.PASSWORD,
+      },
+    });
+
+    const options = {
+      from: process.env.EMAIL,
+      to: email,
+      subject: `Final Step! Complete Your Payment for ${type}`,
+      html: `<div
+  class="container"
+  style="font-family: 'Roboto', sans-serif; max-width: 600px; margin: 0 auto; color: #333;"
+>
+  <div class="head" style="text-align: center; margin-top: 20px;">
+    <h2 style="margin: 0; padding: 10px; padding-top: 5px; color: #2b2b2b;">
+      Hey ${name}, Your Account is Ready to Go!
+    </h2>
+  </div>
+
+  <div
+    class="row"
+    style="padding: 1rem 0; border-top: 1px solid #e5e5e5; border-bottom: 1px solid #e5e5e5; text-align: center;"
+  >
+    <div class="col-12">
+      <img
+        src="https://media.istockphoto.com/id/1338629648/vector/mail-approved-vector-flat-conceptual-icon-style-illustration-eps-10-file.jpg?s=612x612&w=0&k=20&c=o6AcZk3hB6ShxOzmssuOcsfh0QYEQVJ0nCuEZZj1_nQ="
+        alt="Welcome Image"
+        style="width: 180px; box-shadow: rgba(0, 0, 0, 0.16) 0px 4px 8px; margin: 10px auto;"
+      />
+    
+      <p style="margin: 5px 0;">
+        To get started, please confirm your ${type} or complete your payment by clicking the link below.
+      </p>
+      <a
+        href="https://ares-elite-athlete.vercel.app/a-transactions"
+        style="
+          display: inline-block;
+          background-color: #35b0fc;
+          color: white;
+          font-weight: bold;
+          padding: 10px 20px;
+          margin: 15px 0;
+          border-radius: 5px;
+          text-decoration: none;
+          transition: background 0.3s;
+        "
+        >Pay Now</a
+      >
+     
+      <p style="margin-top: 15px; font-size: 0.9rem;">
+        If you didn’t request this email, please contact us at our helpline:
+        <span style="font-weight: bold">+91-1234567890</span>.
+      </p>
+      <p style="margin-top: 20px; font-size: 0.8rem; color: #949090;">
+        Regards, <br /> Team <span style="color: #35b0fc;">Ares-Elite</span>
+      </p>
+    </div>
+  </div>
+</div>
+`,
+    };
+
+    const sendMailPromise = util.promisify(
+      smtpTransport.sendMail.bind(smtpTransport)
+    );
+    await sendMailPromise(options);
+
+    // Close the transport after sending the email
+    smtpTransport.close();
+  } catch (error) {
+    console.error("Error sending email:", error);
+    throw error; // Re-throw the error for the calling code to handle
+  }
+};
+
+module.exports = { resetPasswordCode, newAccount, paymentMail };

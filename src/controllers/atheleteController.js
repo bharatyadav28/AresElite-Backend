@@ -605,9 +605,18 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     // });
     // console.log(testClient);
 
-    const sessionResult = await OfflineAtheleteDrillsModel.findOne({
+    let sessionResult = await OfflineAtheleteDrillsModel.findOne({
       client: new mongoose.Types.ObjectId(userId),
     });
+
+    const today = new Date();
+    const expirationDate = new Date(sessionResult.expirationDate);
+
+    if (today.getTime() > expirationDate.getTime()) {
+      sessionResult.numOfSessions = sessionResult?.sessions.length || 0;
+      await sessionResult.save();
+      console.log("Session result:", sessionResult);
+    }
 
     // console.log(lineForTotalIsBooked)
     // const sessionResult = await OfflineDrill.aggregate(lineForTotalIsBooked);
