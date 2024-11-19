@@ -610,12 +610,15 @@ exports.dashboard = catchAsyncError(async (req, res, next) => {
     });
 
     const today = new Date();
-    const expirationDate = new Date(sessionResult.expirationDate);
+    const expiredData = sessionResult?.expirationDate;
+    if (expiredData) {
+      const expirationDate = new Date(sessionResult.expirationDate);
 
-    if (today.getTime() > expirationDate.getTime()) {
-      sessionResult.numOfSessions = sessionResult?.sessions.length || 0;
-      await sessionResult.save();
-      console.log("Session result:", sessionResult);
+      if (today.getTime() > expirationDate.getTime()) {
+        sessionResult.numOfSessions = sessionResult?.sessions.length || 0;
+        await sessionResult.save();
+        console.log("Session result:", sessionResult);
+      }
     }
 
     // console.log(lineForTotalIsBooked)

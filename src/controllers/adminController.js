@@ -1782,6 +1782,9 @@ exports.updateTransaction = catchAsyncError(async (req, res, next) => {
     transaction.payment_status = status;
     await transaction.save();
 
+    user.plan_payment = status;
+    await user.save();
+
     if (serviceNames.includes(service_type) && booking_id) {
       const appointment = await appointmentModel.findById(booking_id);
       appointment.status = status;
