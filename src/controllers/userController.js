@@ -1561,6 +1561,10 @@ exports.submitPrescription = catchAsyncError(async (req, res, next) => {
 
   await newEvalForm.save();
 
+  const appointment = await appointmentModel.findById(appointmentId);
+  appointment.service_status = "completed";
+  await appointment.save();
+
   res.status(200).json({
     success: true,
     message: "Form Submitted",
