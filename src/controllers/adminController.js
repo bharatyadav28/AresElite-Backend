@@ -911,8 +911,11 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
   const page = parseInt(req.query.page_no) || 1;
   const limit = parseInt(req.query.per_page_count) || 8;
   const searchQuery = req.query.searchQuery;
+  const role = req.query.role;
 
-  let query = { role: ["doctor", "athlete"] };
+  const userType = role.split(",");
+
+  let query = { role: userType?.length ? userType : ["doctor", "athlete"] };
   if (searchQuery) {
     const regex = new RegExp(`^${searchQuery}`, "i");
     query.$or = [
@@ -921,20 +924,25 @@ exports.getAllUsers = catchAsyncError(async (req, res, next) => {
       { first_name: regex },
       { last_name: regex },
       { email: regex },
-      { role: regex },
+      // { role: regex },
     ];
   }
-  const users = await userModel
-    .find(query)
-    // .sort({ createdAt: -1 })
-    .skip((page - 1) * limit)
-    .limit(limit)
-    .exec();
+  // const users = await userModel
+  //   .find(query)
+  //   // .sort({ createdAt: -1 })
+  //   .skip((page - 1) * limit)
+  //   .limit(limit)
+  //   .exec();
+
+  let users = await userModel.find(query).exec();
+
+  users = users.reverse(); // Reverse the array in JavaScript
+  users = users.slice((page - 1) * limit, (page - 1) * limit + limit);
 
   const totalRecords = await userModel.countDocuments(query);
 
   res.json({
-    users,
+    users: users,
     totalPages: Math.ceil(totalRecords / limit),
     currentPage: page,
   });
