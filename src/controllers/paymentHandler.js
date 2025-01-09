@@ -44,16 +44,18 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
           state: user.state,
           country: "India" || "Canada",
         },
-        payment_method: "pm_card_visa",
-        invoice_settings: {
-          default_payment_method: "pm_card_visa", // Set the default payment method
-        },
+        // payment_method: "pm_card_visa",
+        // invoice_settings: {
+        //   default_payment_method: "pm_card_visa", // Set the default payment method
+        // },
       });
       user.stripeCustomerId = customer.id;
       await user.save();
     } else {
       customer = await stripe.customers.retrieve(user.stripeCustomerId);
     }
+
+    console.log("Customer: ", customer)
 
     let paymentIntent;
 
@@ -86,11 +88,11 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       try {
         paymentIntent = await stripe.paymentIntents.create({
           amount: upfrontAmount * 100, // Convert to the smallest currency unit
-          currency: "inr", // Adjust currency as needed
+          currency: "usd", // Adjust currency as needed
           customer: customer.id,
-          payment_method: "pm_card_visa", // Replace with a valid payment method ID
-          off_session: true,
-          confirm: true,
+          // payment_method: "pm_card_visa", // Replace with a valid payment method ID
+          // off_session: true,
+          // confirm: true,
           description: `Upfront charge for ${phase.duration} months`,
         });
 
@@ -115,7 +117,7 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
         // Create a recurring price
         const price = await stripe.prices.create({
           unit_amount: phase.cost * 100, // Monthly cost
-          currency: "inr",
+          currency: "usd",
           recurring: { interval: "month" },
           product: product.id,
         });
@@ -193,11 +195,11 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       // Handle training session payment
       paymentIntent = await stripe.paymentIntents.create({
         amount: cost * 100, // Use the calculated cost
-        currency: "inr",
+        currency: "usd",
         customer: customer.id,
-        payment_method: "pm_card_visa",
-        off_session: true,
-        confirm: true,
+        // payment_method: "pm_card_visa",
+        // off_session: true,
+        // confirm: true,
         description: "Training Session Booking",
       });
     } else if (type === "booking") {
@@ -229,11 +231,12 @@ exports.createPaymentIntent = catchAsyncError(async (req, res, next) => {
       // Handle booking payment
       paymentIntent = await stripe.paymentIntents.create({
         amount: cost * 100, // Use the calculated cost
-        currency: "inr",
+        currency: "usd",
         customer: customer.id,
-        payment_method: "pm_card_visa",
-        off_session: true,
-        confirm: true,
+        // payment_method: "pm_card_visa",
+        // automatic_payment_methods: { enabled: true },
+        // off_session: true,
+        // confirm: true,
         description: "Service Booking",
       });
     } else {
